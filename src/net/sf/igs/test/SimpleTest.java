@@ -17,11 +17,10 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 import java.util.*;
-import net.sf.igs.SessionImpl;
 import org.ggf.drmaa.DrmaaException;
 import org.ggf.drmaa.Session;
 import org.ggf.drmaa.JobTemplate;
-
+import org.ggf.drmaa.SessionFactory;
 
 /**
  * TODO: Use JUnit
@@ -33,7 +32,7 @@ public class SimpleTest {
 	 */
 	public static void main(String args[]) {
 		try {
-			Session session = new SessionImpl();
+			Session session = SessionFactory.getFactory().getSession();
 
 			session.init("");
 			JobTemplate jt = session.createJobTemplate();
