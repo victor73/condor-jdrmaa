@@ -1,0 +1,41 @@
+37a38
+> 
+1538a1540,1577
+> 
+> 
+> /****** DRMAA/drmaa_get_num_job_ids() **************************************
+>  * *  NAME
+>  * *     drmaa_get_num_job_ids() -- Get the number of entries in the vector
+>  * *
+>  * *  SYNOPSIS
+>  * *     void drmaa_get_num_job_ids(drmaa_attr_values_t* values, int *size) 
+>  * *
+>  * *  FUNCTION
+>  * *     Get the number of entries in the id vector.
+>  * *
+>  * *  INPUTS
+>  * *     drmaa_attr_values_t* values - The attribute id vector.
+>  * *
+>  * *  OUTPUTS
+>  * *     int - DRMAA error code
+>  * *  NOTES
+>  * *     MT-NOTE: drmaa_get_num_job_ids() is MT safe
+>  * *******************************************************************************/
+> int
+> drmaa_get_num_job_ids(drmaa_job_ids_t* values, int *size)
+> {
+>     return DRMAA_ERRNO_SUCCESS;
+> }
+> 
+> int
+> drmaa_get_num_attr_values(drmaa_attr_values_t* values, int *size)
+> {
+>     return DRMAA_ERRNO_SUCCESS;
+> }
+> 
+> int
+> drmaa_get_num_attr_names(drmaa_attr_names_t* values, int *size)
+> {
+>     return DRMAA_ERRNO_SUCCESS;
+> }
+> 
