@@ -1,5 +1,5 @@
 JAVA_HOME=/usr/java/jdk1.6.0_06
-CONDOR_HOME=/home/vfelix/condor-7.0.2
+CONDOR_HOME=/usr/local/condor-7.0.2
 JAR=condor-drmaa.jar
 CONDOR_INC=$(shell dirname `find ${CONDOR_HOME} -name drmaa.h`)
 LDFLAGS=-Wall
