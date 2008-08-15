@@ -21,18 +21,12 @@ import org.ggf.drmaa.Version;
  *
  * @see org.ggf.drmaa.Session
  * @see com.sun.grid.drmaa.JobTemplateImpl
- * @see <a href="http://gridengine.sunsource.net/unbranded-source/browse/~checkout~/gridengine/doc/htmlman/manuals.html?content-type=text/html">Grid Engine Man Pages</a>
- * @author dan.templeton@sun.com
- * @since 0.5
- * @version 1.0
  */
 public class SessionImpl implements Session {
     static {
         AccessController.doPrivileged(new PrivilegedAction() {
             public Object run() {
-                System.out.println("Loading libcondorjdrmaa.so");
                 System.loadLibrary("condorjdrmaa");
-                System.out.println("Loaded libcondorjdrmaa.so");
                 return null;
             }
         });
