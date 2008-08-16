@@ -75,11 +75,15 @@ public class SimpleTest {
 
 			session.init("");
 			JobTemplate jt = session.createJobTemplate();
-
+			
+			// Note: The test will fail if the user's home directory does not
+			// exist on the execute node.
+			jt.setWorkingDirectory(System.getProperty("user.home"));
 			jt.setRemoteCommand("/bin/sleep");
 			jt.setArgs(Collections.singletonList("10"));
 			jt.setJobName(SimpleTest.class.getSimpleName());
 			String jobId = session.runJob(jt);
+			
 			assertNotNull(jobId);
 			assertTrue(jobId.length() > 0);
 			
