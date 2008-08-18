@@ -3,6 +3,7 @@ CONDOR_HOME=/usr/local/packages/condor
 JAR=condor-drmaa.jar
 CONDOR_INC=${CONDOR_HOME}/include
 LDFLAGS=-Wall
+#CFLAGS=-fPIC -Wall -ggdb
 CFLAGS=-fPIC -Wall
 
 default: all
@@ -13,16 +14,18 @@ build:
 dist: build
 	-mkdir dist
 
-patch:
+patch: build
 	-cp "${CONDOR_HOME}/src/drmaa/libDrmaa.c" build/
+	-cp "${CONDOR_HOME}/src/drmaa/drmaa.h" build/
 	-patch build/libDrmaa.c libDrmaa.c.patch
+	-patch build/drmaa.h drmaa.h.patch
 
 libcondorjdrmaa.so: dist patch
 	@echo "Compiling C code for the JNI layer"
-	gcc ${CFLAGS} -I "${CONDOR_INC}" -I "${JAVA_HOME}/include/" -I "${JAVA_HOME}/include/linux/" -c SessionImpl.c -o build/SessionImpl.o
 	cp ${CONDOR_HOME}/lib/libcondordrmaa.a build/
 	pushd build && ar -x libcondordrmaa.a 
-	gcc -DCONDOR_DRMAA_STANDALONE ${CFLAGS} -I "${CONDOR_HOME}/src/drmaa/" -c build/libDrmaa.c -o build/libDrmaa.o
+	gcc -DCONDOR_DRMAA_STANDALONE ${CFLAGS} -I. -I "${CONDOR_HOME}/src/drmaa/" -c build/libDrmaa.c -o build/libDrmaa.o
+	gcc ${CFLAGS} -I. -I "${CONDOR_INC}" -I "${JAVA_HOME}/include/" -I "${JAVA_HOME}/include/linux/" -c SessionImpl.c -o build/SessionImpl.o
 	gcc ${LDFLAGS} -shared build/*.o -o dist/libcondorjdrmaa.so
 
 clean:
