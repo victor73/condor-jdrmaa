@@ -1,6 +1,8 @@
-37a38
+22a23
+> #include <pthread.h>
+37a39
 > 
-1538a1540,1577
+1538a1541,1588
 > 
 > 
 > /****** DRMAA/drmaa_get_num_job_ids() **************************************
@@ -24,18 +26,28 @@
 > int
 > drmaa_get_num_job_ids(drmaa_job_ids_t* values, int *size)
 > {
+>     if (! values) {
+>         return DRMAA_ERRNO_INVALID_ARGUMENT;
+>     }
+>     *size=10;
 >     return DRMAA_ERRNO_SUCCESS;
 > }
 > 
 > int
 > drmaa_get_num_attr_values(drmaa_attr_values_t* values, int *size)
 > {
+>     if (! values) {
+>         return DRMAA_ERRNO_INVALID_ARGUMENT;
+>     }
 >     return DRMAA_ERRNO_SUCCESS;
 > }
 > 
 > int
 > drmaa_get_num_attr_names(drmaa_attr_names_t* values, int *size)
 > {
+>     if (! values) {
+>         return DRMAA_ERRNO_INVALID_ARGUMENT;
+>     }
 >     return DRMAA_ERRNO_SUCCESS;
 > }
 > 

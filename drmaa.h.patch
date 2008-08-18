@@ -1,0 +1,7 @@
+537a538,543
+>   DLL_MAGIC int drmaa_get_num_job_ids(drmaa_job_ids_t * values, int *size);
+> 
+>   DLL_MAGIC int drmaa_get_num_attr_values(drmaa_attr_values_t * values, int *size);
+> 
+>   DLL_MAGIC int drmaa_get_num_attr_names(drmaa_attr_names_t * values, int *size);
+> 
