@@ -1,9 +1,6 @@
 22a23
 > #include <pthread.h>
-37a39
-> 
-1538a1541,1588
-> 
+1538a1540,1584
 > 
 > /****** DRMAA/drmaa_get_num_job_ids() **************************************
 >  * *  NAME
@@ -29,7 +26,6 @@
 >     if (! values) {
 >         return DRMAA_ERRNO_INVALID_ARGUMENT;
 >     }
->     *size=10;
 >     return DRMAA_ERRNO_SUCCESS;
 > }
 > 
@@ -50,4 +46,3 @@
 >     }
 >     return DRMAA_ERRNO_SUCCESS;
 > }
-> 
