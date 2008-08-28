@@ -31,6 +31,8 @@ import org.junit.Test;
  */
 public class SimpleTest {
 
+	private static final String contactName = SimpleTest.class.getSimpleName();
+	
 	/**
 	 * Test simple job submission with no wait for completion.
 	 */
@@ -39,7 +41,7 @@ public class SimpleTest {
 		try {
 			Session session = SessionFactory.getFactory().getSession();
 
-			session.init("");
+			session.init(contactName);
 			JobTemplate jt = session.createJobTemplate();
 
 			// Note: The test will fail if the user's home directory does not
@@ -58,7 +60,6 @@ public class SimpleTest {
 
 			// Exit the session
 			session.exit();
-
 		} catch (DrmaaException de) {
 			de.printStackTrace();
 			fail(de.getMessage());
@@ -69,11 +70,11 @@ public class SimpleTest {
 	 * Test simple job submission with a wait for completion.
 	 */
 	@Test
-	public void simpleSubmitAndWaitTest() {
+	public void simpleSubmitAndWaitForeverTest() {
 		try {
 			Session session = SessionFactory.getFactory().getSession();
 
-			session.init("");
+			session.init(contactName);
 			JobTemplate jt = session.createJobTemplate();
 			
 			// Note: The test will fail if the user's home directory does not
@@ -92,7 +93,7 @@ public class SimpleTest {
 
 			// Wait for the job to complete
 			JobInfo jobInfo = session.wait(jobId, Session.TIMEOUT_WAIT_FOREVER);
-			//session.synchronize(Collections.singletonList(jobId), Session.TIMEOUT_WAIT_FOREVER, true);
+
 			assertNotNull(jobInfo);
 			
 			// Exit the session
@@ -102,4 +103,80 @@ public class SimpleTest {
 			fail(de.getMessage());
 		}
 	}
+	
+	/**
+	 * Test simple job submission with a wait for completion with timeout.
+	 */
+	@Test
+	public void simpleSubmitAndWaitWithTimeoutTest() {
+		try {
+			Session session = SessionFactory.getFactory().getSession();
+
+			session.init(contactName);
+			JobTemplate jt = session.createJobTemplate();
+			
+			// Note: The test will fail if the user's home directory does not
+			// exist on the execute node.
+			jt.setWorkingDirectory(System.getProperty("user.home"));
+			jt.setRemoteCommand("/bin/sleep");
+			jt.setArgs(Collections.singletonList("10"));
+			jt.setJobName(SimpleTest.class.getSimpleName());
+			String jobId = session.runJob(jt);
+			
+			assertNotNull(jobId);
+			assertTrue(jobId.length() > 0);
+			
+			// Delete the template
+			session.deleteJobTemplate(jt);
+
+			// Wait for the job to complete for (5 minutes at most)...
+			JobInfo jobInfo = session.wait(jobId, 300);
+
+			assertNotNull(jobInfo);
+			
+			// Exit the session
+			session.exit();
+		} catch (DrmaaException de) {
+			de.printStackTrace();
+			fail(de.getMessage());
+		}
+	}
+	
+	/**
+	 * Test simple job submission with a wait for completion.
+	 */
+	@Test
+	public void simpleSubmitAndSynchronizeTest() {
+		try {
+			Session session = SessionFactory.getFactory().getSession();
+
+			session.init(contactName);
+			JobTemplate jt = session.createJobTemplate();
+			
+			// Note: The test will fail if the user's home directory does not
+			// exist on the execute node.
+			jt.setWorkingDirectory(System.getProperty("user.home"));
+			jt.setRemoteCommand("/bin/sleep");
+			jt.setArgs(Collections.singletonList("10"));
+			jt.setJobName(SimpleTest.class.getSimpleName());
+			String jobId = session.runJob(jt);
+			
+			assertNotNull(jobId);
+			assertTrue(jobId.length() > 0);
+			
+			// Delete the template
+			session.deleteJobTemplate(jt);
+
+			// Wait for the job to complete
+			session.synchronize(Collections.singletonList(jobId), Session.TIMEOUT_WAIT_FOREVER, true);
+			
+			// Exit the session
+			session.exit();
+		} catch (DrmaaException de) {
+			de.printStackTrace();
+			fail(de.getMessage());
+		}
+	}
 }
+
+

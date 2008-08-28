@@ -13,13 +13,13 @@ import org.ggf.drmaa.*;
  * version 1.0
  */
 public class JobInfoImpl implements JobInfo {
-    private static final int EXITED_BIT = 0x00000001;
-    private static final int SIGNALED_BIT = 0x00000002;
-    private static final int COREDUMP_BIT = 0x00000004;
-    private static final int NEVERRAN_BIT = 0x00000008;
+    public static final int EXITED_BIT = 0x00000001;
+    public static final int SIGNALED_BIT = 0x00000002;
+    public static final int COREDUMP_BIT = 0x00000004;
+    public static final int NEVERRAN_BIT = 0x00000008;
     /* POSIX exit status has only 8 bit */
-    private static final int EXIT_STATUS_BITS = 0x00000FF0;
-    private static final int EXIT_STATUS_OFFSET = 4;
+    public static final int EXIT_STATUS_BITS = 0x00000FF0;
+    public static final int EXIT_STATUS_OFFSET = 4;
     private final String signal;
     private final int status;
     private final String jobId;
@@ -32,7 +32,7 @@ public class JobInfoImpl implements JobInfo {
      * @param resourceUsage an array of name=value resource usage pairs
      * @param signal the string description of the terminating signal
      */
-    JobInfoImpl(String jobId, int status, String[] resourceUsage, String signal) {
+    public JobInfoImpl(String jobId, int status, String[] resourceUsage, String signal) {
         this.jobId = jobId;
         this.status = status;
         this.resources = nameValuesToMap(resourceUsage);

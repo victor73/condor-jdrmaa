@@ -1,5 +1,22 @@
 package net.sf.igs;
 
+/*
+This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+import java.text.ParseException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -23,81 +40,39 @@ import org.ggf.drmaa.UnsupportedAttributeException;
  *
  * <h3>DRMMA Attributes</h3>
  *
- * <p>DRMAA job template attributes can be set from six different sources.  In
- * order of precedence, from lowest to highest, there are: options
- * set by DRMAA automatically by default, options set in the sge_request
- * file(s), options set in the script file, options set by the jobCategory
- * property, options set by the nativeSpecification property, and
- * options set through other DRMAA properties.</p>
- *
- * <p>By default DRMAA sets four options for all jobs.  They are
- * &quot;-p  0&quot;, &quot;-b yes&quot;, &quot;-shell no&quot;, and
- * &quot;-w e&quot;.  This means that by default, all jobs will have priority 0,
- * all jobs will be treated as binary, i.e. no scripts args will be parsed, all
- * jobs will be executed without a wrapper shell, and jobs which are
- * unschedulable will cause a submit error.</p>
- *
- * The sge_request file, found in the $SGE_ROOT/$SGE_CELL/common directory, may
- * contain options to be applied to all jobs.  The .sge_request file found in
- * the user's home directory or the current working directory may also contain
- * options to be applied to certain jobs.  See the sge_request(5) man page
- * for more information.</p>
- *
- * <p>If the sge_request file contains &quot;-b no&quot; or if the
- * nativeSpecification property is set and contains &quot;-b no&quot;, the
- * script file will be parsed for in-line arguments. Otherwise, no script's args
- * will be interpreted.  See the qsub(1) man page for more information.</p>
- *
- * <p>If the jobCategory property is set, and the category it points to
- * exists in one of the qtask files, the options associated with that category
- * will be applied to the job template.  See the qtask(5) man page and
- * {@link #setJobCategory(String)} below for more information.</p>
- *
  * <p>If the nativeSpecification property is set, all options contained therein
  * will be applied to the job template.  See
- * {@link #setNativeSpecification(String)} below for more information.</p>
- *
- * <p>Other DRMAA attributes will override any previous settings.  For example,
- * if the sge_request file contains &quot;-j y&quot;, but the joinFiles
- * property is set to <code>false</code>, the ultimate result is that the input
- * and output files will remain separate.</p>
- *
- * <p>For various reasons, some options are silently ignored by DRMAA.  Setting
- * any of these options will have no effect.  The ignored options are:
- * &quot;-cwd&quot;, &quot;-help&quot;, &quot;-sync&quot;, &quot;-t&quot;,
- * &quot;-verify&quot;, &quot;-w w&quot;, and &quot;-w v&quot;.
- * The &quot;-cwd&quot; option can be reenabled by setting the environment
- * variable, SGE_DRMAA_ALLOW_CWD.  However, the &quot;-cwd&quot; option is not
- * thread safe and should not be used in a multi-threaded context.</p>
+ * {@link #setNativeSpecification(String) setNativeSpecification} below for more
+ * information.</p>
  *
  * <h3>Attribute Correlations</h3>
  *
- * <p>The following DRMAA attributes correspond to the following qsub
- * options:</p>
+ * <p>The following DRMAA attributes correspond to the following condor_submit
+ * file directives:</p>
  *
  * <table>
- *  <tr><th>DRMAA Attribute</th><th>qsub Option</th></tr>
+ *  <tr><th>DRMAA Attribute</th><th>condor_submit directive</th></tr>
  *  <tr><td>remoteCommand</td><td>script file</td>
  *  <tr><td>args</td><td>script file arguments</td>
- *  <tr><td>jobSubmissionState = HOLD_STATE</td><td>-h</td>
- *  <tr><td>jobEnvironment</td><td>-v</td>
- *  <tr><td>workingDirectory = $PWD</td><td>-cwd</td>
- *  <tr><td>jobCategory</td><td>(qtsch qtask)<sup>*</sup></td>
+ *  <tr><td>jobSubmissionState = HOLD_STATE</td><td></td>
+ *  <tr><td>jobEnvironment</td><td></td>
+ *  <tr><td>workingDirectory = $PWD</td><td></td>
+ *  <tr><td>jobCategory</td><td></td>
  *  <tr><td>nativeSpecification</td><td>ALL<sup>*</sup></td>
- *  <tr><td>emailAddresses</td><td>-M</td>
- *  <tr><td>blockEmail = true</td><td>-m n</td>
- *  <tr><td>startTime</td><td>-a</td>
- *  <tr><td>jobName</td><td>-N</td>
- *  <tr><td>inputPath</td><td>-i</td>
- *  <tr><td>outputPath</td><td>-o</td>
- *  <tr><td>errorPath</td><td>-e</td>
- *  <tr><td>joinFiles</td><td>-j</td>
- *  <tr><td>transferFiles</td><td>(prolog and epilog)<sup>*</sup></td>
+ *  <tr><td>emailAddresses</td><td></td>
+ *  <tr><td>blockEmail = true</td><td></td>
+ *  <tr><td>startTime</td><td></td>
+ *  <tr><td>jobName</td><td></td>
+ *  <tr><td>inputPath</td><td></td>
+ *  <tr><td>outputPath</td><td></td>
+ *  <tr><td>errorPath</td><td></td>
+ *  <tr><td>joinFiles</td><td></td>
+ *  <tr><td>transferFiles</td><td></td>
  * </table>
  *
  * <p><sup>*</sup> See the individual attribute setter description below</p>
  *
- * <p>The following attributes are unsupported by Grid Engine:</p>
+ * <p>The following attributes are unsupported by Condor-JDRMAA:</p>
  *
  * <ul>
  * <li>deadlineTime</li>
@@ -108,17 +83,10 @@ import org.ggf.drmaa.UnsupportedAttributeException;
  * </ul>
  *
  * <p>Using the accessors for any of these attributes will result in an
- * UnsupportedAttributeException being thrown.</p>
+ * {@link UnsupportedAttributeException} being thrown.</p>
  *
- * @author dan.templeton@sun.com
  * @see org.ggf.drmaa.JobTemplate
  * @see org.ggf.drmaa.Session
- * @see com.sun.grid.drmaa.SessionImpl
- * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman5/sge_request.html">sge_request(5)</a>
- * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman1/qsub.html">qsub(1)</a>
- * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman5/qtask.html">qtask(5)</a>
- * @since 0.5
- * @version 1.0
  */
 public class JobTemplateImpl implements JobTemplate {
     private static final String REMOTE_COMMAND = "drmaa_remote_command";
@@ -150,9 +118,38 @@ public class JobTemplateImpl implements JobTemplate {
     private static final String BLOCK_EMAIL_FALSE_STRING = "0";
     private static final String JOIN_FILES_TRUE_STRING = "y";
     private static final String JOIN_FILES_FALSE_STRING = "n";
+    
     private static PartialTimestampFormat ptf = new PartialTimestampFormat();
     private SessionImpl session = null;
     private int id = -1;
+    
+    // Job instance data
+    private List<String> args = null;
+	private String remoteCommand = null;
+	private String category = null;
+	private String nativeSpecification = null;
+	private Set<String> email = new HashSet<String>();
+	private String transferMode = null;
+    private String workingDirectory = null;
+	private String inputPath = null;
+	private String outputPath = null;
+	private String errorPath = null;
+	private String submissionStateString = null;
+	private Object blockEmail = null;
+	private String jobName = null;
+	private PartialTimestamp startTime = null;
+	private Map<String, String> environment = null;
+	private boolean joinFiles;
+	
+	private static Set<String> attributeSet = null; 
+    private static final String[] ATTRIBUTES = { REMOTE_COMMAND, INPUT_PARAMETERS,
+    		JOB_SUBMISSION_STATE, JOB_ENVIRONMENT,
+    		WORKING_DIRECTORY, JOB_CATEGORY,
+    		NATIVE_SPECIFICATION, EMAIL_ADDRESS,
+    		BLOCK_EMAIL, START_TIME,
+    		JOB_NAME, INPUT_PATH,
+    		OUTPUT_PATH, ERROR_PATH,
+    		JOIN_FILES, TRANSFER_FILES };
     
     /**
      * Creates a new instance of JobTemplateImpl
@@ -200,54 +197,44 @@ public class JobTemplateImpl implements JobTemplate {
      * @throws DrmaaException {@inheritDoc}
      */
     public void setRemoteCommand(String remoteCommand) throws DrmaaException {
-        this.setAttribute(REMOTE_COMMAND, remoteCommand);
+        this.remoteCommand = remoteCommand;
     }
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setRemoteCommand(String)
      */
     public String getRemoteCommand() throws DrmaaException {
-        String[] command = this.getAttribute(REMOTE_COMMAND);
-        
-        if (command != null) {
-            return command[0];
-        } else {
-            return null;
-        }
+    	return remoteCommand ;
     }
     
     /**
      * Specifies the arguments to the job.
+     * 
      * @param args {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
     public void setArgs(List args) throws DrmaaException {
-        this.setAttribute(INPUT_PARAMETERS, args);
+        this.args = args;
     }
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setArgs(List)
      */
-    public List getArgs() throws DrmaaException {
-        String[] result = this.getAttribute(INPUT_PARAMETERS);
-        List returnValue = null;
-
-        if (result != null) {
-            returnValue = Arrays.asList(result);
-        }
-
-        return returnValue;
+    public List<String> getArgs() throws DrmaaException {
+        return args;
     }
     
     /**
-     * Specifies the job state at submission.  The possible values are
-     * <code>HOLD_STATE</code> and <code>ACTIVE_STATE</code>:
+     * Specifies the job state at submission. The possible values are
+     * {@link #HOLD_STATE} and <code>ACTIVE_STATE</code>:
      *
      * <ul>
      *  <li><code>ACTIVE</code> means the job is submitted in a runnable
@@ -256,25 +243,21 @@ public class JobTemplateImpl implements JobTemplate {
      *  (either <code>Session.USER_ON_HOLD</code> or
      *  <code>Session.USER_SYSTEM_ON_HOLD</code>).</li>
      * </ul>
-     * 
-     * <p>This parameter is largely equivalent to the qsub submit option
-     * &quot;-h&quot;.
+     *
      * @param state {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
-     * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman1/qsub.html">qsub(1)</a>
      */
     public void setJobSubmissionState(int state) throws DrmaaException {
         String stateString = null;
         
         if (state == HOLD_STATE) {
-            stateString = this.HOLD_STRING;
+            stateString = HOLD_STRING;
         } else if (state == ACTIVE_STATE) {
-            stateString = this.ACTIVE_STRING;
+            stateString = ACTIVE_STRING;
         } else {
             throw new InvalidAttributeValueException("jobSubmissionState attribute is invalid");
         }
-        
-        this.setAttribute(JOB_SUBMISSION_STATE, stateString);
+        this.submissionStateString = stateString;
     }
     
     /**
@@ -283,15 +266,13 @@ public class JobTemplateImpl implements JobTemplate {
      * @throws DrmaaException {@inheritDoc}
      * @see #setJobSubmissionState(int)
      */
-    public int getJobSubmissionState() throws DrmaaException {
-        String[] stateString =  this.getAttribute(JOB_SUBMISSION_STATE);
-        
-        if ((stateString == null) || stateString[0].equals(this.ACTIVE_STRING)) {
+    public int getJobSubmissionState() throws DrmaaException {        
+        if ((submissionStateString == null) || submissionStateString.equals(ACTIVE_STRING)) {
             return ACTIVE_STATE;
-        } else if (stateString[0].equals(this.HOLD_STRING)) {
+        } else if (submissionStateString.equals(HOLD_STRING)) {
             return HOLD_STATE;
         } else {
-            /* This should never happen */
+            // This should never happen
             throw new InternalException("jobSubmissionState property is unparsable");
         }
     }
@@ -303,47 +284,18 @@ public class JobTemplateImpl implements JobTemplate {
      * @throws DrmaaException {@inheritDoc}
      */
     public void setJobEnvironment(Map env) throws DrmaaException {
-        String[] envStrings = new String[env.size()];
-        Iterator i = env.keySet().iterator();
-        int count = 0;
-        String key = null;
-        StringBuffer nameValue = null;
-        
-        while (i.hasNext()) {
-            key = (String)i.next();
-            nameValue = new StringBuffer(key);
-            nameValue.append('=');
-            nameValue.append(env.get(key));
-            envStrings[count] = nameValue.toString();
-            count++;
-        }
-        
-        this.setAttribute(JOB_ENVIRONMENT, Arrays.asList(envStrings));
+        environment = env;
     }
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setJobEnvironment(Map)
      */
     public Map getJobEnvironment() throws DrmaaException {
-        String[] props = this.getAttribute(JOB_ENVIRONMENT);
-        Map env = null;
-        
-        if (props != null) {
-            env = new HashMap();
-            
-            for (int count = 0; count < props.length; count++) {
-                int index = props[count].indexOf('=');
-                String name = props[count].substring(0, index);
-                String value = props[count].substring(index + 1);
-                
-                env.put(name, value);
-            }
-        }
-        
-        return env;
+        return environment;
     }
     
     /**
@@ -354,7 +306,7 @@ public class JobTemplateImpl implements JobTemplate {
      * execution host.
      * 
      * <p>When the DRMAA job template is used for bulk job submission (see also
-     * {@link org.ggf.drmaa.Session#runBulkJobs(org.ggf.drmaa.JobTemplate,int,int,int)}
+     * {@link org.ggf.drmaa.Session#runBulkJobs(org.ggf.drmaa.JobTemplate,int,int,int) runBulkJobs}
      * the <CODE>PARAMETRIC_INDEX</CODE> placeholder can be used at any position
      * within the directory name to cause a substitution with the parametric
      * job's index.  The directory name must be specified in a syntax that is
@@ -365,111 +317,85 @@ public class JobTemplateImpl implements JobTemplate {
      * default to the user's home directory.  If set, and the directory does
      * not exist, the job will enter the state <code>FAILED</code> when the job
      * is run.</p>
-     * @param wd {@inheritDoc}
+     * 
+     * @param workingDirectory {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see org.ggf.drmaa.JobTemplate#HOME_DIRECTORY
      * @see org.ggf.drmaa.JobTemplate#PARAMETRIC_INDEX
      * @see org.ggf.drmaa.Session#FAILED
      */
-    public void setWorkingDirectory(String wd) throws DrmaaException {
-        this.setAttribute(WORKING_DIRECTORY, wd);
+    public void setWorkingDirectory(String workingDirectory) throws DrmaaException {
+        this.workingDirectory = workingDirectory;
     }
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setWorkingDirectory(String)
      */
     public String getWorkingDirectory() throws DrmaaException {
-        String[] wd =  this.getAttribute(WORKING_DIRECTORY);
-        
-        if (wd != null) {
-            return wd[0];
-        } else {
-            return null;
-        }
+        return workingDirectory;
     }
     
+    // TODO: Explain how category is used, if at all...
+    
     /**
-     * Specifies the DRMAA job category. The category string is used by
-     * Grid Engine as reference into the qtask file. Certain qsub options used
-     * in the referenced qtask file line are applied to the job template
-     * before submission to allow site-specific resolving of resources and/or
-     * policies.  The cluster qtask file, the local qtask file, and the user
-     * qtask file are searched. Job settings resulting from job template
-     * category are overridden by settings resulting from the job template
-     * nativeSpecification property as well as by explict DRMAA job template
-     * property settings.
-     *
-     * <p>The options -help, -t, -verify, and -w w|v are ignored.  The -cwd
-     * option is ignored unless the $SGE_DRMAA_ALLOW_CWD environment variable is
-     * set.</p>
+     * Specifies the DRMAA job category.
+     * 
      * @param category {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
-     * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman5/qtask.html">qtask(5)</a>
-     * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman1/qsub.html">qsub(1)</a>
      */
     public void setJobCategory(String category) throws DrmaaException {
-        this.setAttribute(JOB_CATEGORY, category);
+       	this.category = category;
     }
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setJobCategory(String)
      */
     public String getJobCategory() throws DrmaaException {
-        String[] category =  this.getAttribute(JOB_CATEGORY);
-        
-        if (category != null) {
-            return category[0];
-        } else {
-            return null;
-        }
+    	return category;
     }
     
     /**
-     * Specifies native qsub options which will be interpreted as part of the
-     * DRMAA job template.  All options available to the qsub command may be
-     * used in the nativeSpecification, except for -help, -t, -verify, and -w
-     * w|v.  -cwd may only be used if the $SGE_DRMAA_ALLOW_CWD enviroment
-     * variable is set.  Options set in the nativeSpecification will be
-     * overridden by the corresponding DRMAA properties.  See the qsub(1) man
-     * page for more information on qsub command line options.
+     * Specifies native condor_submit options which will be interpreted as part of the
+     * DRMAA job template. All options available to <code>condor_submit</code> may be
+     * used in the nativeSpecification. Options set in the nativeSpecification will be
+     * overridden by the corresponding DRMAA properties.
+     * 
      * @param spec {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
-     * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman1/qsub.html">qsub(1)</a>
+     * @see "condor_submit documentation/man page"
      */
     public void setNativeSpecification(String spec) throws DrmaaException {
-        this.setAttribute(NATIVE_SPECIFICATION, spec);
+        nativeSpecification = spec;
     }
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setNativeSpecification(String)
      */
     public String getNativeSpecification() throws DrmaaException {
-        String[] spec =  this.getAttribute(NATIVE_SPECIFICATION);
-        
-        if (spec != null) {
-            return spec[0];
-        } else {
-            return null;
-        }
+        return nativeSpecification;
     }
     
     /**
      * Set the list of email addresses used to report the job completion and
-     * status.
+     * status. For Condor, only one email address is supported.
+     * 
      * @param email {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
     public void setEmail(Set email) throws DrmaaException {
-        this.setAttribute(EMAIL_ADDRESS, email);
+        this.email  = email;
     }
     
     /**
@@ -479,44 +405,34 @@ public class JobTemplateImpl implements JobTemplate {
      * @see #setEmail(java.util.Set)
      */
     public Set getEmail() throws DrmaaException {
-        String[] result = this.getAttribute(EMAIL_ADDRESS);
-        Set returnValue = null;
-
-        if (result != null) {
-            returnValue = new HashSet(Arrays.asList(result));
-        }
-
-        return returnValue;
+        return email;
     }
     
     /**
-     * Specifies whether e-mail sending shall blocked or not.  By default email
-     * is not sent.  If, however, a setting in a cluster or user settings file
-     * or the nativeSpecification or jobCategory property enables sending email
-     * in association with job events, the blockEmail property will override
-     * that setting, causing no email to be sent.
+     * Specifies whether e-mail sending is to be blocked or not. By default, email
+     * is not sent.
+     * 
      * @param blockEmail {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
     public void setBlockEmail(boolean blockEmail) throws DrmaaException {
         if (blockEmail) {
-            this.setAttribute(BLOCK_EMAIL, this.BLOCK_EMAIL_TRUE_STRING);
+            this.blockEmail = BLOCK_EMAIL_TRUE_STRING;
         } else {
-            this.setAttribute(BLOCK_EMAIL, this.BLOCK_EMAIL_FALSE_STRING);
+            this.blockEmail = BLOCK_EMAIL_FALSE_STRING;
         }
     }
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setBlockEmail(boolean)
      */
     public boolean getBlockEmail() throws DrmaaException {
-        String[] block =  this.getAttribute(BLOCK_EMAIL);
-        
-        if (block != null) {
-            return block[0].equals(this.BLOCK_EMAIL_TRUE_STRING);
+    	if (blockEmail != null) {
+            return blockEmail.equals(BLOCK_EMAIL_TRUE_STRING);
         } else {
             return false;
         }
@@ -524,108 +440,93 @@ public class JobTemplateImpl implements JobTemplate {
     
     /**
      * Set the earliest time when the job may be eligible to be run.
+     * 
      * @param startTime {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see org.ggf.drmaa.PartialTimestamp
      */
     public void setStartTime(PartialTimestamp startTime) throws DrmaaException {
-        this.setAttribute(START_TIME, ptf.format(startTime));
+        this.startTime = startTime;
     }
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setStartTime(org.ggf.drmaa.PartialTimestamp)
      */
     public PartialTimestamp getStartTime() throws DrmaaException {
-        String[] time =  this.getAttribute(START_TIME);
-        
-        if (time != null) {
-            try {
-                return ptf.parse(time[0]);
-            } catch (java.text.ParseException e) {
-                throw new InternalException("startTime property is unparsable");
-            }
-        } else {
-            return null;
-        }
+        return startTime ;
     }
     
     /**
-     * Set the name of the job.  A job name will be comprised of alpha-numeric
-     * and _ characters.  Setting the job name is equivalent to use of the qsub
-     * submit option &quot;-N&quot; with <i>name</i> as option argument and has
-     * the same restrictions.  See the qsub(1) man page.
+     * Set the name of the job.  A job name must be be comprised of alpha-numeric
+     * and _ characters only.
+     * 
      * @param name {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
-     * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman1/qsub.html">qsub(1)</a>
      */
     public void setJobName(String name) throws DrmaaException {
-        this.setAttribute(JOB_NAME, name);
+        // TODO: Need a test case to make sure this regular expression works
+    	if (name.matches("[^A-Za-z0-9_]")) {
+    		throw new InvalidAttributeValueException("Illegal characters in the job name.");
+    	}
+     	this.jobName = name;
     }
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setJobName(String)
      */
     public String getJobName() throws DrmaaException {
-        String[] name =  this.getAttribute(JOB_NAME);
-        
-        if (name != null) {
-            return name[0];
-        } else {
-            return null;
-        }
+        return jobName;
     }
-    
-    /**
-     * Set the job's standard input path.  Unless set elsewhere, if not
-     * explicitly set in the job template, the job is started with an empty
-     * input stream.  If the standard input is set, it specifies the network
-     * path of the job's input stream file in the form of
-     * <code>[hostname]:file_path</code><br>
-     * <p>When the transferFiles property is supported and the set
-     * TranferFileMode instance's inputStream property is set to
-     * <code>true</code>, the input file will be fetched by Grid Engine
-     * from the specified host or from the submit host if no hostname
-     * is specified.  When the transferFiles property is unsupported or the set
-     * TranferFileMode instance's inputStream property is not set or is set to
-     * <code>false</code>, the input file is always expected to be at the
-     * host where the job is executed, regardless of any hostname specified.</p>
-     *
-     * <p>When the DRMAA job template is used for bulk job submission (see also
-     * {@link org.ggf.drmaa.Session#runBulkJobs(org.ggf.drmaa.JobTemplate,int,int,int)}
-     * the <CODE>PARAMETRIC_INDEX</CODE> placeholder can be used at any position
-     * within the file name to cause a substitution with the parametric
-     * job's index.  A <CODE>HOME_DIRECTORY</CODE> placeholder at the beginning
-     * of the file path denotes the remaining portion of the file path as a
-     * relative file specification to be resolved relative to the job user's
-     * home directory at the host where the file is located.  A
-     * <CODE>WORKING_DIRECTORY</CODE> placeholder at the beginning of file path
-     * denotes the remaining portion of the file path as a relative file
-     * specification to be resolved relative to the job's working directory at
-     * the host where the file is located.  The file name must be specified in a
-     * syntax that is common at the host where the job will be executed.  If no
-     * home or working directory placeholder is used, an absolute file
-     * specification is recommended. If set to a relative file path and no home
-     * or working directory placeholder is used, a path relative to the user's
-     * home directory is assumed.</p>
-     *
-     * <p>When the job is run, if this attribute is set, and the file can't be
-     * read, the job will enter the state <code>FAILED</code>.</p>
-     *
-     * @param inputPath {@inheritDoc}
-     * @throws DrmaaException {@inheritDoc}
-     * @see org.ggf.drmaa.JobTemplate#HOME_DIRECTORY
-     * @see org.ggf.drmaa.JobTemplate#WORKING_DIRECTORY
-     * @see org.ggf.drmaa.JobTemplate#PARAMETRIC_INDEX
-     * @see org.ggf.drmaa.Session#FAILED
-     */
+
+	/**
+	 * Set the job's standard input path. Unless set elsewhere, if not
+	 * explicitly set in the job template, the job is started with an empty
+	 * input stream. If the standard input is set, it specifies the network path
+	 * of the job's input stream file in the form of
+	 * <code>[hostname]:file_path</code><br>
+	 * 
+	 * <p>
+	 * When the DRMAA job template is used for bulk job submission (see also
+	 * {@link org.ggf.drmaa.Session#runBulkJobs(org.ggf.drmaa.JobTemplate,int,int,int)
+	 * runBulkJobs} the <CODE>PARAMETRIC_INDEX</CODE> placeholder can be used at
+	 * any position within the file name to cause a substitution with the
+	 * parametric job's index. A <CODE>HOME_DIRECTORY</CODE> placeholder at the
+	 * beginning of the file path denotes the remaining portion of the file path
+	 * as a relative file specification to be resolved relative to the job
+	 * user's home directory at the host where the file is located. A
+	 * <CODE>WORKING_DIRECTORY</CODE> placeholder at the beginning of file path
+	 * denotes the remaining portion of the file path as a relative file
+	 * specification to be resolved relative to the job's working directory at
+	 * the host where the file is located. The file name must be specified in a
+	 * syntax that is common at the host where the job will be executed. If no
+	 * home or working directory placeholder is used, an absolute file
+	 * specification is recommended. If set to a relative file path and no home
+	 * or working directory placeholder is used, a path relative to the user's
+	 * home directory is assumed.
+	 * </p>
+	 * 
+	 * <p>
+	 * When the job is run, if this attribute is set, and the file can't be
+	 * read, the job will enter the state <code>FAILED</code>.
+	 * </p>
+	 * 
+	 * @param inputPath {@inheritDoc}
+	 * @throws DrmaaException {@inheritDoc}
+	 * @see org.ggf.drmaa.JobTemplate#HOME_DIRECTORY
+	 * @see org.ggf.drmaa.JobTemplate#WORKING_DIRECTORY
+	 * @see org.ggf.drmaa.JobTemplate#PARAMETRIC_INDEX
+	 * @see org.ggf.drmaa.Session#FAILED
+	 */
     public void setInputPath(String inputPath) throws DrmaaException {
-        this.setAttribute(INPUT_PATH, inputPath);
+        this.inputPath  = inputPath;
     }
     
     /**
@@ -635,13 +536,7 @@ public class JobTemplateImpl implements JobTemplate {
      * @see #setInputPath(String)
      */
     public String getInputPath() throws DrmaaException {
-        String[] path =  this.getAttribute(INPUT_PATH);
-        
-        if (path != null) {
-            return path[0];
-        } else {
-            return null;
-        }
+        return inputPath;
     }
     
     /**
@@ -651,17 +546,8 @@ public class JobTemplateImpl implements JobTemplate {
      * specifies the network path of the job's output stream file in the form of
      * <code>[hostname]:file_path<code>
      *
-     * <p>When the transferFiles property is supported and the set
-     * TranferFileMode instance's outputStream property is set to
-     * <code>true</code>, the output file will be transferred by Grid Engine
-     * to the specified host or to the submit host if no hostname is specified.
-     * When the transferFiles property is unsupported or the set
-     * TranferFileMode instance's outputStream property is not set or is set to
-     * <code>false</code>, the output file is always kept at the host where the
-     * job is executed, regardless of any hostname specified.</p>
-     *
      * <p>When the DRMAA job template is used for bulk job submission (see also
-     * {@link org.ggf.drmaa.Session#runBulkJobs(org.ggf.drmaa.JobTemplate,int,int,int)}
+     * {@link org.ggf.drmaa.Session#runBulkJobs(org.ggf.drmaa.JobTemplate,int,int,int) runBulkJobs}
      * the <CODE>PARAMETRIC_INDEX</CODE> placeholder can be used at any position
      * within the file name to cause a substitution with the parametric
      * job's index.  A <CODE>HOME_DIRECTORY</CODE> placeholder at the beginning
@@ -689,23 +575,18 @@ public class JobTemplateImpl implements JobTemplate {
      * @see org.ggf.drmaa.Session#FAILED
      */
     public void setOutputPath(String outputPath) throws DrmaaException {
-        this.setAttribute(OUTPUT_PATH, outputPath);
+        this.outputPath  = outputPath;
     }
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setOutputPath(String)
      */
     public String getOutputPath() throws DrmaaException {
-        String[] path =  this.getAttribute(OUTPUT_PATH);
-        
-        if (path != null) {
-            return path[0];
-        } else {
-            return null;
-        }
+        return outputPath;
     }
     
     /**
@@ -715,17 +596,8 @@ public class JobTemplateImpl implements JobTemplate {
      * specifies the network path of the job's error stream file in the form of
      * <code>[hostname]:file_path</code><br>
      *
-     * <p>When the transferFiles property is supported and the set
-     * TranferFileMode instance's errorStream property is set to
-     * <code>true</code>, the error file will be transferred by Grid Engine
-     * to the specified host or to the submit host if no hostname is specified.
-     * When the transferFiles property is unsupported or the set
-     * TranferFileMode instance's errorStream property is not set or is set to
-     * <code>false</code>, the error file is always kept at the host where the
-     * job is executed, regardless of any hostname specified.</p>
-     *
      * <p>When the DRMAA job template is used for bulk job submission (see also
-     * {@link org.ggf.drmaa.Session#runBulkJobs(org.ggf.drmaa.JobTemplate,int,int,int)}
+     * {@link org.ggf.drmaa.Session#runBulkJobs(org.ggf.drmaa.JobTemplate,int,int,int) runBulkJobs}
      * the <CODE>PARAMETRIC_INDEX</CODE> placeholder can be used at any position
      * within the file name to cause a substitution with the parametric
      * job's index.  A <CODE>HOME_DIRECTORY</CODE> placeholder at the beginning
@@ -753,7 +625,7 @@ public class JobTemplateImpl implements JobTemplate {
      * @see org.ggf.drmaa.Session#FAILED
      */
     public void setErrorPath(String errorPath) throws DrmaaException {
-        this.setAttribute(ERROR_PATH, errorPath);
+        this.errorPath = errorPath;
     }
     
     /**
@@ -763,13 +635,7 @@ public class JobTemplateImpl implements JobTemplate {
      * @see #setErrorPath(String)
      */
     public String getErrorPath() throws DrmaaException {
-        String[] path =  this.getAttribute(ERROR_PATH);
-        
-        if (path != null) {
-            return path[0];
-        } else {
-            return null;
-        }
+        return errorPath ;
     }
     
     /**
@@ -779,15 +645,12 @@ public class JobTemplateImpl implements JobTemplate {
      * will ignore the value of the errorPath property and intermix the standard
      * error stream with the standard output stream as specified with
      * outputPath.
+     * 
      * @param join {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
     public void setJoinFiles(boolean join) throws DrmaaException {
-        if (join) {
-            this.setAttribute(JOIN_FILES, this.JOIN_FILES_TRUE_STRING);
-        } else {
-            this.setAttribute(JOIN_FILES, this.JOIN_FILES_FALSE_STRING);
-        }
+        joinFiles = join;
     }
     
     /**
@@ -797,13 +660,7 @@ public class JobTemplateImpl implements JobTemplate {
      * @see #setJoinFiles(boolean)
      */
     public boolean getJoinFiles() throws DrmaaException {
-        String[] join =  this.getAttribute(JOIN_FILES);
-        
-        if (join != null) {
-            return join[0].equalsIgnoreCase(this.JOIN_FILES_TRUE_STRING);
-        } else {
-            return false;
-        }
+        return joinFiles;
     }
     
     /**
@@ -811,19 +668,11 @@ public class JobTemplateImpl implements JobTemplate {
      *
      * {@inheritDoc}
      *
-     * <p>The file transfer mechanism itself must be configured by the
-     * administrator. (See the sge_conf(5) man page.)  When it is configured,
-     * the administrator has to enable the transferFiles property by setting the
-     * execd param, delegated_file_staging, to true. If it is not configured,
-     * transferFiles is not supported and accessing this property will result in
-     * an UnsupportedAttributeException being thrown.</p>
-     *
      * @param mode {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setInputPath(String)
      * @see #setOutputPath(String)
      * @see #setErrorPath(String)
-     * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman5/sge_conf.html">sge_conf(5)</a>
      */
     public void setTransferFiles(FileTransferMode mode) throws DrmaaException {
         StringBuffer buf = new StringBuffer();
@@ -840,22 +689,21 @@ public class JobTemplateImpl implements JobTemplate {
             buf.append('e');
         }
         
-        this.setAttribute(TRANSFER_FILES, buf.toString());
+        transferMode = buf.toString();
     }
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
+     * 
      * @throws DrmaaException {@inheritDoc}
      * @see #setTransferFiles(org.ggf.drmaa.FileTransferMode)
      */
     public FileTransferMode getTransferFiles() throws DrmaaException {
-        String[] mode =  this.getAttribute(TRANSFER_FILES);
-        
-        if (mode != null) {
-            return new FileTransferMode((mode[0].indexOf('i') != -1),
-                    (mode[0].indexOf('o') != -1),
-                    (mode[0].indexOf('e') != -1));
+        if (transferMode != null) {
+            return new FileTransferMode(transferMode.contains("i"),
+                    transferMode.contains("o"), transferMode.contains("e"));
         } else {
             return null;
         }
@@ -864,6 +712,8 @@ public class JobTemplateImpl implements JobTemplate {
     /**
      * Unsupported property.  Will throw an UnsupportedAttributeException if
      * called.
+     * 
+     * @param deadline a {@link PartialTimestamp}
      * @throws UnsupportedAttributeException unsupported property
      */
     public void setDeadlineTime(PartialTimestamp deadline)
@@ -875,6 +725,7 @@ public class JobTemplateImpl implements JobTemplate {
     /**
      * Unsupported property.  Will throw an UnsupportedAttributeException if
      * called.
+     * @return a {@link PartialTimestamp}
      * @throws UnsupportedAttributeException unsupported property
      */
     public PartialTimestamp getDeadlineTime()
@@ -886,6 +737,8 @@ public class JobTemplateImpl implements JobTemplate {
     /**
      * Unsupported property.  Will throw an UnsupportedAttributeException if
      * called.
+     * 
+     * @param hardWallclockLimit a <code>long</code>
      * @throws UnsupportedAttributeException unsupported property
      */
     public void setHardWallclockTimeLimit(long hardWallclockLimit)
@@ -897,6 +750,7 @@ public class JobTemplateImpl implements JobTemplate {
     /**
      * Unsupported property.  Will throw an UnsupportedAttributeException if
      * called.
+     * @return a <code>long</code>
      * @throws UnsupportedAttributeException unsupported property
      */
     public long getHardWallclockTimeLimit()
@@ -908,6 +762,7 @@ public class JobTemplateImpl implements JobTemplate {
     /**
      * Unsupported property.  Will throw an UnsupportedAttributeException if
      * called.
+     * @param softWallclockLimit a <code>long</code>
      * @throws UnsupportedAttributeException unsupported property
      */
     public void setSoftWallclockTimeLimit(long softWallclockLimit)
@@ -919,6 +774,7 @@ public class JobTemplateImpl implements JobTemplate {
     /**
      * Unsupported property.  Will throw an UnsupportedAttributeException if
      * called.
+     * @return a <code>long</code>
      * @throws UnsupportedAttributeException unsupported property
      */
     public long getSoftWallclockTimeLimit()
@@ -970,53 +826,149 @@ public class JobTemplateImpl implements JobTemplate {
         throw new UnsupportedAttributeException("The softRunDurationLimit " +
                                                 "attribute is not supported.");
     }
-
-    /**
-     * Uses the SessionImpl instance to get the attribute value from the native
-     * job template asssociated with this JobTemplateImpl instance.
-     */
-    private String[] getAttribute(String name) throws DrmaaException {
-        String[] values = session.nativeGetAttribute(id, name);
-        
-        return values;
-    }
     
     /**
      * Uses the SessionImpl instance to set the attribute in the native job
-     * template asssociated with this JobTemplateImpl instance.
+     * template associated with this JobTemplateImpl instance.
      */
     private void setAttribute(String name, Collection value) throws DrmaaException {
-        session.nativeSetAttributeValues(id, name, (String[])value.toArray(new String[value.size()]));
+    	if ( ! isValidAttribute(name)) {
+    		throw new UnsupportedAttributeException(name + " is not a valid attribute.");
+    	}
+    	
+    	// The attributes names that we compare 'name' to below are the only
+    	// ones that can handle collections of values (list, set, etc...)
+    	// If another attribute is supplied with a Collection, then there is
+    	// a usage error. We therefore throw an InvalidAttributeValueException.
+        if (name.equals(INPUT_PARAMETERS)) {
+        	this.setArgs(Arrays.asList(value));
+        } else if (name.equals(JOB_ENVIRONMENT)) {
+        	HashMap<String, String> env = new HashMap<String, String>();
+        	Iterator<String> iter = value.iterator();
+        	while (iter.hasNext()) {
+        		String pair = (String) iter.next();
+        		if (pair.contains("=")) {
+        			String[] pairArray = pair.split("=");
+        			env.put(pairArray[0], pairArray[1]);
+        		}
+        	}
+        	this.setJobEnvironment(env);
+        } else if (name.equals(EMAIL_ADDRESS)) {
+        	HashSet<String> emails = new HashSet<String>();
+        	emails.addAll(value);
+        	this.setEmail(emails);
+        } else {
+        	throw new InvalidAttributeValueException();
+        }
+     }
+    
+    private boolean isValidAttribute(String attribute) {
+    	// Assume false, and work to see if it is true
+    	boolean valid = false;
+
+		try {
+	    	Set<String> attributes;
+			attributes = this.getAttributeNames();
+			if (attributes.contains(attribute)) {
+				valid = true;
+			}
+		} catch (DrmaaException e) {
+			// This should never happen with this implementation
+			e.printStackTrace();
+		}
+
+    	return valid;
     }
     
     /**
      * Uses the SessionImpl instance to set the vector attribute in the native
-     * job template asssociated with this JobTemplateImpl instance.
+     * job template associated with this JobTemplateImpl instance.
      */
     private void setAttribute(String name, String value) throws DrmaaException {
-        session.nativeSetAttributeValue(id, name, value);
+        if (! isValidAttribute(name)) {
+        	throw new UnsupportedAttributeException(name + " is not a valid attribute.");
+        }
+        
+        if (name.equals(REMOTE_COMMAND)) {
+        	this.setRemoteCommand(value);
+        } else if (name.equals(JOB_SUBMISSION_STATE)) {
+        	int submissionState = Integer.parseInt(value);
+        	this.setJobSubmissionState(submissionState);
+        } else if (name.equals(WORKING_DIRECTORY)) {
+        	this.setWorkingDirectory(value);
+        } else if (name.equals(JOB_CATEGORY)) {
+        	this.setJobCategory(value);
+        } else if (name.equals(NATIVE_SPECIFICATION)) {
+        	this.setNativeSpecification(value);
+        } else if (name.equals(BLOCK_EMAIL)) {
+        	boolean block = false;
+        	if (value.equals(BLOCK_EMAIL_TRUE_STRING)) {;
+        		block = true;
+        	} else if (value.equals(BLOCK_EMAIL_FALSE_STRING)) {
+        		block = false;
+        	} else {
+        		throw new InvalidAttributeValueException("Unable to parse value for email blocking.");
+        	}
+        	this.setBlockEmail(block);
+        } else if (name.equals(START_TIME)) {
+        	PartialTimestampFormat f = new PartialTimestampFormat();
+        	PartialTimestamp pts;
+			try {
+				pts = f.parse(value);
+			} catch (ParseException e) {
+				throw new InvalidAttributeValueException("Unable to parse start time value.");
+			}
+        	this.setStartTime(pts);
+        } else if (name.equals(JOB_NAME)) {
+        	this.setJobName(value);
+        } else if (name.equals(INPUT_PATH)) {
+        	this.setInputPath(value);
+        } else if (name.equals(OUTPUT_PATH)) {
+        	this.setOutputPath(value);
+        } else if (name.equals(ERROR_PATH)) {
+        	this.setErrorPath(value);
+        } else if (name.equals(JOIN_FILES)) {
+        	boolean join = false;
+        	if (value.equals(JOIN_FILES_FALSE_STRING)) {
+        		join = false;
+        	} else if (value.equals(JOIN_FILES_TRUE_STRING)) {
+        		join = true;
+        	} else {
+        		throw new InvalidAttributeValueException("Bad 'join files' attribute value.");
+        	}
+        	this.setJoinFiles(join);	
+        } else if (name.equals(TRANSFER_FILES)) {
+        	FileTransferMode ftm = new FileTransferMode();
+        	if (value.contains("i")) {
+        		ftm.setInputStream(true);
+        	}
+        	if (value.contains("o")) {
+        		ftm.setOutputStream(true);
+        	}
+        	if (value.contains("e")) {
+        		ftm.setErrorStream(true);
+        	}
+        	this.setTransferFiles(ftm);
+        } else {
+        	throw new UnsupportedAttributeException(name + " is not a valid attribute.");
+        }
     }
     
     /**
-     * Returns the list of supported properties names.  With the execd param,
-     * delegated_file_staging, set to false, this list includes only the list of
-     * DRMAA required properties.  With delegated_file_staging set to true, the
-     * list also includes the transferFiles property.</p>
+     * Returns the list of supported properties names.</p>
+     * 
      * @return {@inheritDoc}
      */
-    public Set getAttributeNames() throws DrmaaException {
-        String[] result = session.nativeGetAttributeNames(id);
-        Set returnValue = new HashSet();
-
-        if (result != null) {
-            returnValue.addAll(Arrays.asList(result));
-        }
-
-        return returnValue;
+    public Set<String> getAttributeNames() throws DrmaaException {
+    	if (attributeSet == null || attributeSet.isEmpty()) {
+    		attributeSet = new HashSet<String>();
+        	attributeSet.addAll(Arrays.asList(ATTRIBUTES));
+    	}
+        return attributeSet;
     }
     
     /**
-     * Tests whether this JobTemplateImpl represents the same native job
+     * Tests whether this {@link JobTemplateImpl} represents the same native job
      * template as the given object.  This implementation means that even if two
      * JobTemplateImpl instance's have all the same settings, they are not
      * equal, because they are associated with different native job templates.
@@ -1035,6 +987,7 @@ public class JobTemplateImpl implements JobTemplate {
     /**
      * Returns a hash code based on the associated native job template's table
      * index.
+     * 
      * @return the hash code
      */
     public int hashCode() {
