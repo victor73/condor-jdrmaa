@@ -1,78 +1,99 @@
 package net.sf.igs;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.Arrays;
+/*
+This library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.ggf.drmaa.AlreadyActiveSessionException;
 import org.ggf.drmaa.DrmaaException;
+import org.ggf.drmaa.InternalException;
+import org.ggf.drmaa.InvalidContactStringException;
+import org.ggf.drmaa.InvalidJobException;
 import org.ggf.drmaa.InvalidJobTemplateException;
 import org.ggf.drmaa.JobInfo;
 import org.ggf.drmaa.JobTemplate;
+import org.ggf.drmaa.NoActiveSessionException;
 import org.ggf.drmaa.Session;
 import org.ggf.drmaa.Version;
 
 /**
- * The SessionImpl class provides a DRMAA interface to Condor.  This
- * interface is built on top of the DRMAA C binding using JNI.  In order to keep
- * the native code as localized as possible, this class also provides native
- * DRMAA services to other classes, such as the JobTemplateImpl.
- *
- * <p>This class relies on the version 1.0 <i>drmaa</i> shared library.</p>
+ * The SessionImpl class provides a DRMAA interface to Condor.
  *
  * @see org.ggf.drmaa.Session
- * @see com.sun.grid.drmaa.JobTemplateImpl
+ * @see net.sf.igs.JobTemplateImpl
+ * @see "http://www.cs.wisc.edu/condor/"
  */
 public class SessionImpl implements Session {
-    static {
-        AccessController.doPrivileged(new PrivilegedAction() {
-            public Object run() {
-                System.loadLibrary("condorjdrmaa");
-                return null;
-            }
-        });
-    }
+    private static final String SUBMIT_FILE_PREFIX = "condor_drmaa_";
+	private static final String DRM_SYSTEM = "Condor";
+	private String contact = "";
+    private boolean activeSession = false;
+    private File sessionDir = null;
+    private int jobTemplateId = 1;
+    
+    // Sleep period is in seconds
+    private static final int SLEEP_PERIOD = 5;
     
     /**
      * Creates a new instance of SessionImpl
      */
     public SessionImpl() {
+    	// No-arguments constructor
     }
     
     /**
-     * <p>Controls a jobs.</p>
+     * <p>Controls Condor jobs.</p>
      *
      * {@inheritDoc}
      *
-     * <p>The DRMAA suspend/resume operations are equivalent to the use of the
-     * `-s <jobid>' and `-us <jobid>' options with qmod.  (See the qmod(1) man
-     * page.)</p>
+     * TODO: Complete
+     * <p>The DRMAA suspend/resume operations are equivalent to the use of</p>
      *
-     * <p>The DRMAA hold/release operations are equivalent to the use of
-     * qhold and qrls.  (See the qhold(1) and qrls(1) man pages.)</p>
+     * TODO: Complete
+     * <p>The DRMAA hold/release operations are equivalent to the use of</p>
      *
-     * <p>The DRMAA terminate operation is equivalent to the use of qdel.  (See
-     * the qdel(1) man page.)</p>
+     * TODO: Complete
+     * <p>The DRMAA terminate operation is equivalent to the use of</p>
      *
-     * <p>Only user hold and user suspend can be controled via control().  For
+     * <p>Only user hold and user suspend can be controlled via control().  For
      * affecting system hold and system suspend states the appropriate DRM
      * interfaces must be used.</p>
      *
      * @param jobId {@inheritDoc}
      * @param action {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
-     * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman1/qmod.html">qmod(1)</a>
-     * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman1/qhold.html">qhold(1)</a>
-     * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman1/qrls.html">qrls(1)</a>
-     * @see <a href="http://gridengine.sunsource.net/nonav/source/browse/~checkout~/gridengine/doc/htmlman/htmlman1/qdel.html">qdel(1)</a>
      */
     public void control(String jobId, int action) throws DrmaaException {
-        this.nativeControl(jobId, action);
+      	// this.nativeControl(jobId, action);
+    	// TODO: Implement
     }
-
-    /**
-     * Calls drmaa_control().
-     */
-    private native void nativeControl(String jobId, int action) throws DrmaaException;
     
     /**
      * The exit() method closes the DRMAA session for all threads and must be
@@ -82,79 +103,48 @@ public class SessionImpl implements Session {
      * or after exit() has already been called will result in a
      * NoActiveSessionException.
      *
-     * <p>The exit() method does neccessary clean up of the DRMAA session state,
-     * including unregistering from the qmaster.  If the exit() method is not
-     * called, the qmaster will store events for the DRMAA client until the
-     * connection times out, causing extra work for the qmaster and comsuming
-     * system resources.</p>
+     * <p>The exit() method does necessary clean up of the DRMAA session state</p>
      *
      * <p>Submitted jobs are not affected by the exit() method.</p>
      *
      * @throws DrmaaException {@inheritDoc}
      */
     public void exit() throws DrmaaException {
-        this.nativeExit();
+    	if (sessionDir.exists()) {
+    		Util.deleteDir(sessionDir);
+    	}
+        activeSession = false;
     }
 
     /**
-     * Calls drmaa_exit().
-     */
-    private native void nativeExit() throws DrmaaException;
-    
-    /**
      * getContact() returns an opaque string containing contact information
      * related to the current DRMAA session to be used with the init() method.
-     * The contact string takes the form <code>[name=value[;name=value]*]</code>,
-     * where <i>name</i> and <i>value</i> are both strings, and the supported
-     * values of <i>name</i> are:
-     *
-     * <ul>
-     *    <li><code>session</code> - if used, indicates to which session id
-     *        to reconnect.</li>
-     * </ul>
      *
      * <p>Before the init() method has been called, this method will always
-     * return an empty string.  After the init() method has been called, this
-     * method will return the set of name=value pairs which represent the
-     * currently active session.  The value returned for <code>session</code>
-     * can be used with the init() method to reconnect to the current session
-     * after exit() has been called.</p>
-     *
+     * return an empty string.
+     * 
      * @return {@inheritDoc}
      * @see #init(String)
      */
     public String getContact() {
-        return this.nativeGetContact();
+    	return contact;
     }
 
     /**
-     * Calls drmaa_get_contact().
-     */
-    private native String nativeGetContact();
-    
-    /**
-     * The getDRMSystem() method returns a string containing the DRM product and
-     * version information.  The getDRMSystem() function returns the same value
-     * before and after init() is called.
+     * The getDRMSystem() method returns a string containing the DRM information.
+     *
      * @return {@inheritDoc}
-     * @see #init(String)
      */
     public String getDrmSystem() {
-        return this.nativeGetDRMSInfo();
+        return DRM_SYSTEM;
     }
-
-    /**
-     * Calls drmaa_get_DRM_system().
-     */
-    private native String nativeGetDRMSInfo();
     
     /**
      * The getDrmaaImplementation() method returns a string containing the DRMAA
      * Java language binding implementation version information.  The
-     * getDrmaaImplementation() method returns the same value before and after
-     * init() is called.
+     * method returns the same value before and after {@link #init(String) init} is called.
+     * 
      * @return {@inheritDoc}
-     * @see #init(String)
      */
     public String getDrmaaImplementation() {
         /* Because the DRMAA implementation is tightly bound to the DRM, there's
@@ -164,7 +154,7 @@ public class SessionImpl implements Session {
     }
     
     /**
-     * <p>Get the job programm status.</p>
+     * <p>Get the job program status.</p>
      *
      * {@inheritDoc}
      *
@@ -175,27 +165,39 @@ public class SessionImpl implements Session {
      * @throws DrmaaException {@inheritDoc}
      */
     public int getJobProgramStatus(String jobId) throws DrmaaException {
-        return this.nativeGetJobProgramStatus(jobId);
+        // TODO: Implement
+    	return 0;
     }
-
-    /**
-     * Calls drmaa_job_ps().
-     */
-    private native int nativeGetJobProgramStatus(String jobId) throws DrmaaException;
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
     public JobTemplate createJobTemplate() throws DrmaaException {
-        int id = nativeAllocateJobTemplate();
-        
-        return new JobTemplateImpl(this, id);
+        File jtFile = getJobTemplateFile(jobTemplateId);
+        try {
+			jtFile.createNewFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new InternalException("Unable to create job template: " + e.getMessage());
+		}
+        JobTemplate jt = new JobTemplateImpl(this, jobTemplateId);
+        synchronized (jt) {
+        	jobTemplateId++;
+		}
+        return jt;
+    }
+    
+    private File getJobTemplateFile(int templateId) {
+        File jtFile = new File(sessionDir, jobTemplateId + "");
+        return jtFile;
     }
     
     /**
      * {@inheritDoc}
+     * 
      * @param jt {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
@@ -203,7 +205,16 @@ public class SessionImpl implements Session {
         if (jt == null) {
             throw new NullPointerException("JobTemplate is null");
         } else if (jt instanceof JobTemplateImpl) {
-            nativeDeleteJobTemplate(((JobTemplateImpl)jt).getId());
+        	JobTemplateImpl job = (JobTemplateImpl) jt;
+        	int id = job.getId();
+
+        	// Delete the file from the session area
+        	File jobSessionFile = getJobTemplateFile(id);
+        	if (jobSessionFile.exists() && jobSessionFile.isFile()) {
+        		jobSessionFile.delete();
+        	}
+        	job = null;
+        	jt = null;
         } else {
             throw new InvalidJobTemplateException();
         }
@@ -211,6 +222,7 @@ public class SessionImpl implements Session {
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      */
     public Version getVersion() {
@@ -251,21 +263,42 @@ public class SessionImpl implements Session {
      * @see #exit()
      */
     public void init(String contact) throws DrmaaException {
-        this.nativeInit(contact);
+    	if (contact == null || contact.length() == 0) {
+    		throw new InvalidContactStringException();
+    	}
+    	
+    	boolean condorPresent = Util.isCondorAvailable();
+    	if (! condorPresent) {
+    		throw new InternalException("No Condor installation found.");
+    	}
+
+        // Make the directory for the session
+        String topDir = Util.TMP + File.separator + "condor-jdrmaa-" + System.getProperty("user.name");
+
+    	synchronized (contact) {
+        	if (activeSession) {
+        		throw new AlreadyActiveSessionException();
+        	}
+            this.contact = contact;
+
+            sessionDir = new File(topDir, contact);
+            if (sessionDir.exists()) {
+            	boolean deleted = Util.deleteDir(sessionDir);
+            	if (! deleted) {
+            		throw new InternalException("Unable to delete " + sessionDir + " and it is in the way.");
+            	}
+            }
+            sessionDir.mkdirs();
+            sessionDir.deleteOnExit();
+            activeSession = true;
+		}
     }
 
-    /**
-     * Calls drmaa_init().
-     */
-    private native void nativeInit(String contact) throws DrmaaException;
-    
     /**
      * The runBulkJobs() method submits an array job very much as
      * if the condor_q options for array jobs had been used
      * with the corresponding attributes defined in the DRMAA JobTemplate,
-     * <i>jt</i>.  The same constraints regarding qsub -t value ranges also
-     * apply to the parameters <i>start</i>, <i>end</i>, and <i>incr</i>.  See
-     * the qsub(1) man page for more information.
+     * <i>jt</i>.
      *
      * <p>On success a String array containing job identifiers for each array
      * job task is returned.</p>
@@ -277,25 +310,49 @@ public class SessionImpl implements Session {
      * @param jt {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
-    public List runBulkJobs(JobTemplate jt, int start, int end, int incr) throws DrmaaException {
-        if (jt == null) {
+    public List<String> runBulkJobs(JobTemplate jt, int start, int end, int incr) throws DrmaaException {
+        if (! activeSession) {
+        	throw new NoActiveSessionException(); 
+        }
+    	if (jt == null) {
             throw new NullPointerException("JobTemplate is null");
-        } else if (jt instanceof JobTemplateImpl) {
-            String[] jobIds =
-                    this.nativeRunBulkJobs(((JobTemplateImpl)jt).getId(),
-                                           start, end, incr);
-            
-            return Arrays.asList(jobIds);
-        } else {
+        } else if (! (jt instanceof JobTemplateImpl)) {
             throw new InvalidJobTemplateException();
         }
+
+        if (incr != 1) {
+			throw new InvalidJobTemplateException(
+					"This version of Condor-JDRMAA only supports increments of 1");
+		}
+
+		if (start > end) {
+			throw new InvalidJobTemplateException(
+					"This version of Condor-JDRMAA does not support decreasing ranges.");
+		}
+
+		try {
+			int number = end - start + 1;
+			File submitFile = createSubmitFile(jt, number);
+			// The submit() method returns the first job id regardless of whether the job
+			// is a singleton or an array job. Therefore, we should always get a job ID with
+			// a trailing ".0" on it. In the runBulkJobs context, we remove this and recalculate
+			// the array suffixes sequentially. For this reason, we can't really support
+			// increments other than 1, since Condor doesn't seem to have an easy way to do it
+			// in the submit file either...
+			String jobId = submit(submitFile);
+			jobId = jobId.replace(".0", "");
+			
+			ArrayList<String> jobs = new ArrayList<String>();
+			for (int jobIndex = 0; jobIndex < end; jobIndex++) {
+				String fullJobId = jobId + "." + jobIndex;
+				jobs.add(fullJobId);
+			}
+			return jobs;
+		} catch (Exception e) {
+			throw new InvalidJobTemplateException(e.getMessage());
+		}
     }
 
-    /**
-     * Calls drmaa_run_bulk_jobs().
-     */
-    private native String[] nativeRunBulkJobs(int jtId, int start, int end, int incr) throws DrmaaException;
-    
     /**
      * The runJob() method submits a Condor job with attributes defined in
      * the DRMAA JobTemplate <i>jt</i>. On success, the job identifier is
@@ -305,93 +362,318 @@ public class SessionImpl implements Session {
      * @return {@inheritDoc}
      */
     public String runJob(JobTemplate jt) throws DrmaaException {
+    	String jobId = null;
         if (jt == null) {
             throw new NullPointerException("JobTemplate is null");
-        } else if (jt instanceof JobTemplateImpl) {
-            return this.nativeRunJob(((JobTemplateImpl)jt).getId());
-        } else {
+        } else if (! (jt instanceof JobTemplateImpl)) {
             throw new InvalidJobTemplateException();
         }
+        try {
+        	File submitFile = createSubmitFile(jt, 1);
+			jobId = submit(submitFile);
+			// Save the retrieved jobId in the session file
+			saveJobIdInSessionFile(jt, jobId);
+        } catch (Exception e) {
+        	throw new InternalException(e.getMessage());
+        }
+        return jobId;
     }
 
+	/**
+	 * @param jt
+	 * @param jobId
+	 * @throws IOException
+	 */
+	private void saveJobIdInSessionFile(JobTemplate jt, String jobId)
+			throws IOException {
+		File templateFile = getJobTemplateFile(((JobTemplateImpl) jt).getId());
+		BufferedWriter w = new BufferedWriter(new FileWriter(templateFile));
+		w.write(jobId);
+		w.newLine();
+		w.close();
+	}
+    
     /**
-     * Calls drmaa_run_job().
+     * Create a Condor submit file for the job template.
+     * 
+     * @param job a {@link JobTemplate}
+     * @param number the number of times to execute the job
+     * @return a {@link File} for the submit file created
+     * @throws Exception
      */
-    private native String nativeRunJob(int jtId) throws DrmaaException;
+    private File createSubmitFile(JobTemplate job, int number) throws Exception {
+    	if (number <= 0) {
+    		throw new IllegalArgumentException("Job count must be a positive integer.");
+    	}
+    	
+    	File tempFile = null;
+    	
+		try {
+	    	tempFile = File.createTempFile(SUBMIT_FILE_PREFIX, null);
+			BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile));
+			writer.write("# Condor Submit file");
+			writer.newLine();
+			writer.write("# Generated by Condor-JDRMAA");
+			writer.newLine();
+			writer.write("#");
+			writer.newLine();
+			writer.write("Log=" + Util.LOG_TEMPLATE);
+			writer.newLine();
+			writer.write("Universe=vanilla");
+			writer.newLine();
+			writer.write("Executable=" + job.getRemoteCommand());
+			writer.newLine();
+			if (job.getJobSubmissionState() == JobTemplate.HOLD_STATE) {
+				writer.write("Hold=true");
+				writer.newLine();
+			}
+			
+			// If the working directory has been set, configure it.
+			if (job.getWorkingDirectory() != null) {
+				writer.write("InitialDir = " + job.getWorkingDirectory());
+				writer.newLine();
+			}
+			
+			// Handle any native specifications that have been set
+			if (job.getNativeSpecification() != null) {
+				writer.write(job.getNativeSpecification());
+				writer.newLine();
+			}
+			// Send email notifications?
+			if (job.getBlockEmail()) {
+				writer.write("Notification=Never");
+			}
+			
+			if (job.getStartTime() != null) {
+				long time = job.getStartTime().getTimeInMillis() / 1000;
+				writer.write("PeriodicRelease=(CurrentTime > " + time + ")");
+				writer.newLine();
+				writer.write("Hold=True");
+				writer.newLine();
+			}
+			
+			if (job.getJobName() != null) {
+				writer.write("+JobName=" + job.getJobName());
+				writer.newLine();
+			}
+			
+			if (job.getInputPath() != null) {
+				String input = job.getInputPath();
+				input = input.replace(JobTemplate.PARAMETRIC_INDEX, "$(Process)");
+				input = input.replace(JobTemplate.HOME_DIRECTORY,  "$ENV(HOME)");
+				writer.write("Input=" + input);
+				writer.newLine();
+				// Check whether to transfer the input files
+				if (job.getTransferFiles().getInputStream()) {
+					writer.write("transfer_input_files=i");
+					writer.newLine();
+				}
+			}
+			
+			if (job.getOutputPath() != null) {
+				String output = job.getOutputPath();
+				output = output.replace(JobTemplate.PARAMETRIC_INDEX, "$(Process)");
+				output = output.replace(JobTemplate.HOME_DIRECTORY, "$ENV(HOME)");
+				writer.write("Output=" + output);
+				writer.newLine();
+				
+				// Check if we need to join input and output files
+				if (job.getJoinFiles()) {
+					writer.write("# Joining Input and Output");
+					writer.newLine();
+					writer.write("Error=" + output);
+					writer.newLine();
+				}
+			}
+			
+			// Handle the error path if specified. Do token replacement if necessary.
+			if (job.getErrorPath() != null && ! job.getJoinFiles()) {
+				String error = job.getOutputPath();
+				error = error.replace(JobTemplate.PARAMETRIC_INDEX, "$(Process)");
+				error = error.replace(JobTemplate.HOME_DIRECTORY, "$ENV(HOME)");
+				writer.write("Error=" + error);
+				writer.newLine();
+			}
+			
+			if (job.getTransferFiles() != null && job.getTransferFiles().getOutputStream()) {
+				writer.write("should_transfer_files=IF_NEEDED");
+				writer.newLine();
+				writer.write("when_to_transfer_output=ON_EXIT");
+				writer.newLine();
+			}
+			
+			if (job.getJobEnvironment() != null && ! job.getJobEnvironment().isEmpty()) {
+				Map<String, String> environment = job.getJobEnvironment();
+				StringBuffer sb = new StringBuffer();
+				Iterator<String> iter = environment.keySet().iterator();
+				while (iter.hasNext()) {
+					String name = (String) iter.next();
+					String value = (String) environment.get(name);
+					value = value.replace("\"", "\"\"");
+					String pair = name + "=" + value;
+					sb.append(pair);
+					if (! iter.hasNext()) {
+						sb.append(" ");
+					}
+				}
+				writer.write("Environment=\"" + sb.toString() + "\"");
+				writer.newLine();
+			}
+			
+			// It appears that Condor can only handle 1 email address for notifications
+			// while the DRMAA returns a set of them. If we have emails specified, then
+			// just use the first one...
+			if (job.getEmail() != null && job.getEmail().size() > 0) {
+				if (job.getEmail().size() > 1) {
+					System.err.println("Warning: Only 1 email address is supported.");
+				}
+				writer.write("Notify_user=" + (String) job.getEmail().iterator().next());
+				writer.newLine();
+			}
+			
+			writer.write("Queue " + number);
+			writer.newLine();
+			
+			// Close the writer
+			writer.close();
+		} catch (IOException e) {
+			throw new Exception("Unable to create the Condor submit file.");
+		}
+		return tempFile;
+    }
+
+    /*
+     * Invokes 'condor_submit' to submit the job to the Condor scheduler. The submit
+     * file is deleted after submission is complete. To leave the submit file in place,
+     * for debugging perhaps, define the condor.jdrmaa.debug system property.
+     */
+    private String submit(File submitFile) throws Exception {
+    	System.out.println("Submitting job to Condor.");
+    	if (! (submitFile.exists() && submitFile.isFile() && submitFile.canRead())) {
+    		throw new IllegalArgumentException("Submit file does not exist or isn't readable.");
+    	}
+    	
+    	String jobID = null;
+    	
+    	try {
+    		String submitPath = submitFile.getAbsolutePath();
+        	String[] command = {"condor_submit", submitPath};
+        	Process process = Runtime.getRuntime().exec(command);
+			process.waitFor();
+	    	Reader reader = new InputStreamReader(process.getInputStream());
+	    	BufferedReader bufReader = new BufferedReader(reader);
+	    	String line = null;
+	    	while ( (line = bufReader.readLine()) != null ) {
+	    		if (line.contains("submitted to cluster")) {
+	    			Pattern pattern = Pattern.compile("\\d+\\.$");
+	    			Matcher matcher = pattern.matcher(line);
+	    			if (matcher.find()) {
+	    				jobID = matcher.group();
+	    				jobID = jobID + "0";
+	    			}
+	    		}
+	    	}
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw e;
+		} finally {
+			if (System.getProperty("condor.jdrmaa.debug") == null) {
+				submitFile.delete();
+			}
+		}
+
+
+		return jobID;
+    }
     
     /**
      * {@inheritDoc}
+     * 
      * @param jobIds {@inheritDoc}
      * @param timeout {@inheritDoc}
      * @param dispose {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
     public void synchronize(List jobIds, long timeout, boolean dispose) throws DrmaaException {
-        this.nativeSynchronize((String[])jobIds.toArray(new String[jobIds.size()]), timeout, dispose);
+    	// TODO: Implement
+    	// this.nativeSynchronize((String[]) jobIds.toArray(new String[jobIds.size()]), timeout, dispose);
+    	// TODO: Handle case of JOB_IDS_SESSION_ALL
     }
-
-    /**
-     * Calls drmaa_synchronize().
-     */
-    private native void nativeSynchronize(String[] jobIds, long timeout, boolean dispose) throws DrmaaException;
     
     /**
      * {@inheritDoc}
+     * 
      * @param jobId {@inheritDoc}
      * @param timeout {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
     public JobInfo wait(String jobId, long timeout) throws DrmaaException {
-        JobInfoImpl jobInfo = this.nativeWait(jobId, timeout);
+    	// Make sure we have a good timeout, but check that it's not one of the
+    	// predefined values.
+    	if (timeout <= 0 && timeout != Session.TIMEOUT_WAIT_FOREVER && timeout != Session.TIMEOUT_NO_WAIT) {
+    		throw new IllegalArgumentException("Must have a positive timeout.");
+    	}
+    	
+    	// Get the current number of seconds since the epoch. We'll refer
+    	// to this to make sure we stop waiting if we reach the timeout...
+    	long start = System.currentTimeMillis() / 1000;
         
-        return jobInfo;
+        // Check if we have a valid job ID
+        if (! (Util.validJobId(jobId) || jobId.equals(Session.JOB_IDS_SESSION_ANY))) {
+        	throw new InvalidJobException();
+        }
+        
+        // Check if we have a bad timeout value
+        if (timeout < 0 && timeout != SessionImpl.TIMEOUT_WAIT_FOREVER) {
+        	throw new IllegalArgumentException("Illegal timeout value.");
+        }
+        
+        if (jobId.equals(SessionImpl.JOB_IDS_SESSION_ANY)) {
+        	File[] files = sessionDir.listFiles();
+        	if (files.length > 0) {
+        		// TODO: Pick a file at random instead of just the first
+        		File toWaitFor = files[0];
+        		try {
+					BufferedReader buf = new BufferedReader(new FileReader(toWaitFor));
+					jobId = buf.readLine().trim();
+				} catch (Exception e) {
+					throw new InternalException("Unable to read file " + toWaitFor.getAbsolutePath());
+				}
+        	}
+        }
+        
+        JobInfo info = null;
+        boolean done = false;
+        JobLogParser logParser = new JobLogParser(jobId);
+    	info = logParser.parse();
+    	
+    	// Only go into a monitoring loop if we have a bonafide timeout
+        if (timeout != Session.TIMEOUT_NO_WAIT) {
+            // Start monitoring
+            while (! done) {
+                info = logParser.parse();
+                if (info.hasExited()) {
+                	done = true;
+                }
+                if (! done && timeout == Session.TIMEOUT_WAIT_FOREVER) {
+                    long now = System.currentTimeMillis() / 1000;
+                    if ((now - start) >= timeout) {
+                    	// We've reached the timeout
+                    	done = true;
+                    }
+                }
+                
+                if (! done) {
+                	try {
+                		// SLEEP_PERIOD is in seconds
+    					Thread.sleep(SLEEP_PERIOD * 1000);
+    				} catch (InterruptedException e) {
+    					break;
+    				}
+                }
+            }
+        }
+
+        return info;
     }
-
-    /**
-     * Calls drmaa_wait().
-     */
-    private native JobInfoImpl nativeWait(String jobId, long timeout) throws DrmaaException;
-
-    /**
-     * Calls drmaa_allocate_job_template() to create a native job template and
-     * stores that template reference in a table.  The table index of the
-     * reference is then returned.
-     * @return the table index for the native job template
-     */
-    private native int nativeAllocateJobTemplate() throws DrmaaException;
-
-    /**
-     * Calls drmaa_set_attribute() on the native job template found using the
-     * provided index.
-     * @param jtId the table index for the native job template
-     */
-    native void nativeSetAttributeValue(int jtId, String name, String value) throws DrmaaException;
-
-    /**
-     * Calls drmaa_set_vector_attribute() on the native job template found using
-     * the provided index.
-     * @param jtId the table index for the native job template
-     */
-    native void nativeSetAttributeValues(int jtId, String name, String[] values) throws DrmaaException;
-    
-    /**
-     * Calls drmaa_get_attribute_names() and drmaa_get_vector_attribute_names()
-     * on the native job template found using the provided index.
-     * @param jtId the table index for the native job template
-     */
-    native String[] nativeGetAttributeNames(int jtId) throws DrmaaException;
-    
-    /**
-     * Calls drmaa_get_attribute() or drmaa_get_vector_attribute() (as
-     * appropriate) on the native job template found using the provided index.
-     * @param jtId the table index for the native job template
-     */
-    native String[] nativeGetAttribute(int jtId, String name) throws DrmaaException;
-
-    /**
-     * Calls drmaa_delete_job_template() with the native job template found
-     * using the provided index.
-     * @param jtId the table index for the native job template
-     */
-    native void nativeDeleteJobTemplate(int jtId) throws DrmaaException;
 }

@@ -37,9 +37,11 @@
 
 package org.ggf.drmaa;
 
-import java.text.*;
-import java.util.*;
-import java.util.regex.*;
+import java.text.FieldPosition;
+import java.text.Format;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.text.ParsePosition;
 
 /**
  * This class coverts a PartialTimestamp to and from the DRMAA specified time

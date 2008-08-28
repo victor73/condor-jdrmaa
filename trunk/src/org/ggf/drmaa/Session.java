@@ -370,7 +370,7 @@ public abstract interface Session {
      * <LI>AuthorizationException -- the executing user does not have
      * sufficient permissions to execute the desired action</LI>
      * <LI>IllegalArgumentException -- an argument is invalid</LI>
-     * <LI>InternalException -- an error has occured in the DRMAA
+     * <LI>InternalException -- an error has occurred in the DRMAA
      * implementation</LI>
      * </UL>
      */
@@ -543,7 +543,7 @@ public abstract interface Session {
      * <LI>AuthorizationException -- the executing user does not have
      * sufficient permissions to execute the desired action</LI>
      * <LI>IllegalArgumentException -- an argument is invalid</LI>
-     * <LI>InternalException -- an error has occured in the DRMAA
+     * <LI>InternalException -- an error has occurred in the DRMAA
      * implementation</LI>
      * </UL>
      * @see JobInfo

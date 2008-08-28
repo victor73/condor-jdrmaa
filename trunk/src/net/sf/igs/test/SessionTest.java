@@ -16,11 +16,14 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.ggf.drmaa.AlreadyActiveSessionException;
 import org.ggf.drmaa.DrmaaException;
+import org.ggf.drmaa.InvalidContactStringException;
 import org.ggf.drmaa.Session;
 import org.ggf.drmaa.SessionFactory;
 import org.junit.Test;
@@ -42,16 +45,6 @@ public class SessionTest {
 			
 			session.init("session_name");
 			assertNotNull(session);
-			
-			// Exit the session
-			session.exit();
-			
-			// Can we have a null session?
-			session.init(null);
-			assertNotNull(session);
-			
-			//Exit the session
-			session.exit();
 		} catch (DrmaaException de) {
 			de.printStackTrace();
 			fail(de.getMessage());
@@ -65,8 +58,59 @@ public class SessionTest {
 				// ignored
 			}
 		}
-		
 	}
+	
+	@Test(expected=AlreadyActiveSessionException.class)
+	public void testInitWithActiveSession() throws DrmaaException {
+		Session session = null;
+		session = SessionFactory.getFactory().getSession();
+		assertNotNull(session);
+		try {
+			session.init("session_name");
+			
+			session.init("session_name");
+		} catch (DrmaaException e) {
+			throw e;
+		} finally {
+			try {
+				if (session != null) {
+					session.exit();
+					session = null;
+				}
+			} catch (DrmaaException e) {
+				// ignored
+			}
+		}
+	}
+	
+	/**
+	 * Test whether a contact of null is allowed when initializing a
+	 * session. In this DRMAA implementation, a null is not allowed
+	 * and should cause an IllegalArgumentException
+	 * @throws DrmaaException 
+	 */
+	@Test(expected=InvalidContactStringException.class)
+	public void nullSessionInit() throws DrmaaException {
+		Session session = SessionFactory.getFactory().getSession();
+		assertNotNull(session);
+
+		// Can we have a null session?
+		try {
+			session.init(null);
+		} catch (DrmaaException e) {
+			throw e;
+		} finally {
+			try {
+				if (session != null) {
+					session.exit();
+					session = null;
+				}
+			} catch (DrmaaException e) {
+				// ignored
+			}
+		}
+	}
+	
 	
 	/**
 	 * Test the getContact() method before session initialization.
@@ -105,45 +149,17 @@ public class SessionTest {
 		Session session = null;
 		try {
 			session = SessionFactory.getFactory().getSession();
-
-			// Can we have a null session?
+			
 			session.init(sessionName);
 			assertNotNull(session);
 			
 			String contact = session.getContact();
 			assertNotNull(contact);
 			assertTrue(contact.length() > 0 );
-
+			assertEquals(sessionName, contact);
+			
 			//Exit the session
 			session.exit();	
-		} catch (DrmaaException de) {
-			de.printStackTrace();
-			fail(de.getMessage());
-		} finally {
-			try {
-				if (session != null) {
-					session.exit();
-					session = null;
-				}
-			} catch (DrmaaException e) {
-				// ignored
-			}
-		}
-	}
-	
-	/**
-	 * Test whether null values are allowed for the init() method.
-	 */
-	@Test
-	public void nullSessionNameTest() {
-		Session session = null;
-		try {
-			session = SessionFactory.getFactory().getSession();
-
-			// Can we have a null session?
-			session.init(null);
-			assertNotNull(session);
-			
 		} catch (DrmaaException de) {
 			de.printStackTrace();
 			fail(de.getMessage());
@@ -204,15 +220,15 @@ public class SessionTest {
 		try {
 			session = SessionFactory.getFactory().getSession();
 			assertNotNull(session);
-			
+
 			session.init("session_name");
 			assertNotNull(session);
-			
+
 			String implementation = session.getDrmaaImplementation();
-			
+
 			assertNotNull(implementation);
 			assertTrue(implementation.equalsIgnoreCase("condor"));
-			
+
 		} catch (DrmaaException de) {
 			de.printStackTrace();
 			fail(de.getMessage());
@@ -226,7 +242,7 @@ public class SessionTest {
 				// ignored
 			}
 		}
-		
+
 	}
 	
 }
