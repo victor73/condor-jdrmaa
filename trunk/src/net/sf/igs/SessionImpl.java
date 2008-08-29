@@ -118,7 +118,8 @@ public class SessionImpl implements Session {
 
     /**
      * getContact() returns an opaque string containing contact information
-     * related to the current DRMAA session to be used with the init() method.
+     * related to the current DRMAA session to be used with the {@link #init(String) init}
+     * method.
      *
      * <p>Before the init() method has been called, this method will always
      * return an empty string.
@@ -226,7 +227,7 @@ public class SessionImpl implements Session {
      * @return {@inheritDoc}
      */
     public Version getVersion() {
-        return new Version(0, 1);
+        return new Version(0, 2);
     }
     
     /**
