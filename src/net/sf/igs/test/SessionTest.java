@@ -26,6 +26,7 @@ import org.ggf.drmaa.DrmaaException;
 import org.ggf.drmaa.InvalidContactStringException;
 import org.ggf.drmaa.Session;
 import org.ggf.drmaa.SessionFactory;
+import org.ggf.drmaa.Version;
 import org.junit.Test;
 
 /**
@@ -33,6 +34,8 @@ import org.junit.Test;
  */
 public class SessionTest {
 
+	private static final String CONTACT = SessionTest.class.getSimpleName();
+	
 	/**
 	 * Test session initialization.
 	 */
@@ -43,7 +46,7 @@ public class SessionTest {
 			session = SessionFactory.getFactory().getSession();
 			assertNotNull(session);
 			
-			session.init("session_name");
+			session.init(CONTACT);
 			assertNotNull(session);
 		} catch (DrmaaException de) {
 			de.printStackTrace();
@@ -54,30 +57,45 @@ public class SessionTest {
 					session.exit();
 					session = null;
 				}
-			} catch (DrmaaException e) {
+			} catch (Exception e) {
 				// ignored
 			}
 		}
 	}
 	
+	/**
+	 * Tests whether a call to initialize a session with {@link Session#init(String) init}
+	 * when there is already an initialized session that is active results in the
+	 * proper exception being thrown or not.
+	 * 
+	 * @throws DrmaaException
+	 */
 	@Test(expected=AlreadyActiveSessionException.class)
 	public void testInitWithActiveSession() throws DrmaaException {
 		Session session = null;
 		session = SessionFactory.getFactory().getSession();
 		assertNotNull(session);
+
 		try {
-			session.init("session_name");
-			
-			session.init("session_name");
-		} catch (DrmaaException e) {
-			throw e;
+			session.init(CONTACT);
+		} catch (DrmaaException de) {
+			// We should NOT get an exception after the first call
+			fail("Exception on first init.");
+		}
+		
+		try {
+			// Yet another init() call should result in the exception
+			// we are expecting
+			session.init(CONTACT);
+		} catch (DrmaaException de) {
+			throw de;
 		} finally {
 			try {
 				if (session != null) {
 					session.exit();
 					session = null;
 				}
-			} catch (DrmaaException e) {
+			} catch (Exception e) {
 				// ignored
 			}
 		}
@@ -86,7 +104,7 @@ public class SessionTest {
 	/**
 	 * Test whether a contact of null is allowed when initializing a
 	 * session. In this DRMAA implementation, a null is not allowed
-	 * and should cause an IllegalArgumentException
+	 * and should cause an {@link InvalidContactStringException}.
 	 * @throws DrmaaException 
 	 */
 	@Test(expected=InvalidContactStringException.class)
@@ -105,7 +123,7 @@ public class SessionTest {
 					session.exit();
 					session = null;
 				}
-			} catch (DrmaaException e) {
+			} catch (Exception e) {
 				// ignored
 			}
 		}
@@ -113,7 +131,7 @@ public class SessionTest {
 	
 	
 	/**
-	 * Test the getContact() method before session initialization.
+	 * Test the {@link Session#getContact()} method before session initialization.
 	 */
 	@Test
 	public void getContactBeforeInitTest() {
@@ -124,7 +142,6 @@ public class SessionTest {
 			String contact = session.getContact();
 			assertNotNull(contact);
 			assertTrue(contact.length() > 0);
-
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
@@ -134,32 +151,32 @@ public class SessionTest {
 					session.exit();
 					session = null;
 				}
-			} catch (DrmaaException e) {
+			} catch (Exception e) {
 				// ignored
 			}
 		}
 	}
 
 	/**
-	 * Test the getContact() method after session initialization.
+	 * Test the {@link Session#getContact()} method after session initialization.
+	 * 
+	 * @see Session
+	 * @see "DRMAA 1.0 specification."
 	 */
 	@Test
 	public void getContactAfterInitTest() {
-		String sessionName = "abcde";
 		Session session = null;
 		try {
 			session = SessionFactory.getFactory().getSession();
 			
-			session.init(sessionName);
+			session.init(CONTACT);
 			assertNotNull(session);
 			
-			String contact = session.getContact();
-			assertNotNull(contact);
-			assertTrue(contact.length() > 0 );
-			assertEquals(sessionName, contact);
-			
-			//Exit the session
-			session.exit();	
+			String actualContact = session.getContact();
+			assertNotNull(actualContact);
+			assertTrue(actualContact.length() > 0 );
+			assertEquals(CONTACT, actualContact);
+
 		} catch (DrmaaException de) {
 			de.printStackTrace();
 			fail(de.getMessage());
@@ -169,15 +186,16 @@ public class SessionTest {
 					session.exit();
 					session = null;
 				}
-			} catch (DrmaaException e) {
+			} catch (Exception e) {
 				// ignored
 			}
 		}
 	}
 
 	/**
-	 * Test the getDrmSystem() method.
+	 * Test the {@link Session#getDrmSystem()} method.
 	 * 
+	 * @see Session
 	 * @see "DRMAA 1.0 specification."
 	 */
 	@Test
@@ -187,7 +205,7 @@ public class SessionTest {
 			session = SessionFactory.getFactory().getSession();
 			assertNotNull(session);
 			
-			session.init("session_name");
+			session.init(CONTACT);
 			assertNotNull(session);
 			
 			String system = session.getDrmSystem();
@@ -203,15 +221,16 @@ public class SessionTest {
 					session.exit();
 					session = null;
 				}
-			} catch (DrmaaException e) {
+			} catch (Exception e) {
 				// ignored
 			}
 		}
 	}
 	
 	/**
-	 * Test the getDrmaaImplementation method.
+	 * Test the {@link Session#getDrmaaImplementation()} method.
 	 * 
+	 * @see Session 
 	 * @see "DRMAA 1.0 specification"
 	 */
 	@Test
@@ -221,7 +240,7 @@ public class SessionTest {
 			session = SessionFactory.getFactory().getSession();
 			assertNotNull(session);
 
-			session.init("session_name");
+			session.init(CONTACT);
 			assertNotNull(session);
 
 			String implementation = session.getDrmaaImplementation();
@@ -238,11 +257,43 @@ public class SessionTest {
 					session.exit();
 					session = null;
 				}
-			} catch (DrmaaException e) {
+			} catch (Exception e) {
 				// ignored
 			}
 		}
-
 	}
 	
+	
+	/**
+	 * Test the {@link Session#getVersion()} method.
+	 * 
+	 * @see Session 
+	 * @see "DRMAA 1.0 specification"
+	 */
+	@Test
+	public void getVersionTest() {
+		Session session = null;
+		try {
+			session = SessionFactory.getFactory().getSession();
+			Object v = session.getVersion();
+			
+			assertNotNull(v);
+			assertTrue(v instanceof Version);
+			Version version = (Version) v;
+			assertTrue(version.getMajor() >= 0);
+			assertTrue(version.getMinor() >= 0);
+		} catch (Exception de) {
+			de.printStackTrace();
+			fail(de.getMessage());
+		} finally {
+			try {
+				if (session != null) {
+					session.exit();
+					session = null;
+				}
+			} catch (Exception e) {
+				// ignored
+			}
+		}
+	}
 }
