@@ -110,10 +110,14 @@ public class SessionImpl implements Session {
      * @throws DrmaaException {@inheritDoc}
      */
     public void exit() throws DrmaaException {
-    	if (sessionDir.exists()) {
-    		Util.deleteDir(sessionDir);
+    	if (activeSession) {
+        	if (sessionDir != null && sessionDir.exists()) {
+        		Util.deleteDir(sessionDir);
+        	}
+            activeSession = false;
+    	} else {
+    		throw new IllegalStateException();
     	}
-        activeSession = false;
     }
 
     /**
@@ -475,6 +479,9 @@ public class SessionImpl implements Session {
 				String output = job.getOutputPath();
 				output = output.replace(JobTemplate.PARAMETRIC_INDEX, "$(Process)");
 				output = output.replace(JobTemplate.HOME_DIRECTORY, "$ENV(HOME)");
+				if (output.startsWith(":")) {
+					output = output.substring(1);
+				}
 				writer.write("Output=" + output);
 				writer.newLine();
 				
@@ -549,7 +556,6 @@ public class SessionImpl implements Session {
      * for debugging perhaps, define the condor.jdrmaa.debug system property.
      */
     private String submit(File submitFile) throws Exception {
-    	System.out.println("Submitting job to Condor.");
     	if (! (submitFile.exists() && submitFile.isFile() && submitFile.canRead())) {
     		throw new IllegalArgumentException("Submit file does not exist or isn't readable.");
     	}
@@ -615,10 +621,7 @@ public class SessionImpl implements Session {
     		throw new IllegalArgumentException("Must have a positive timeout.");
     	}
     	
-    	// Get the current number of seconds since the epoch. We'll refer
-    	// to this to make sure we stop waiting if we reach the timeout...
-    	long start = System.currentTimeMillis() / 1000;
-        
+
         // Check if we have a valid job ID
         if (! (Util.validJobId(jobId) || jobId.equals(Session.JOB_IDS_SESSION_ANY))) {
         	throw new InvalidJobException();
@@ -644,37 +647,51 @@ public class SessionImpl implements Session {
         }
         
         JobInfo info = null;
-        boolean done = false;
-        JobLogParser logParser = new JobLogParser(jobId);
-    	info = logParser.parse();
+    	try {
+            JobLogParser logParser = new JobLogParser(jobId);
+			info = logParser.parse();
+	    	// Only go into a monitoring loop if we have a bonafide timeout
+	        if (timeout != Session.TIMEOUT_NO_WAIT) {
+	            info = monitor(logParser, timeout);
+	        }
+		} catch (Exception ioe) {
+			ioe.printStackTrace();
+			throw new InternalException(ioe.getMessage());
+		}
     	
-    	// Only go into a monitoring loop if we have a bonafide timeout
-        if (timeout != Session.TIMEOUT_NO_WAIT) {
-            // Start monitoring
-            while (! done) {
-                info = logParser.parse();
-                if (info.hasExited()) {
-                	done = true;
-                }
-                if (! done && timeout == Session.TIMEOUT_WAIT_FOREVER) {
-                    long now = System.currentTimeMillis() / 1000;
-                    if ((now - start) >= timeout) {
-                    	// We've reached the timeout
-                    	done = true;
-                    }
-                }
-                
-                if (! done) {
-                	try {
-                		// SLEEP_PERIOD is in seconds
-    					Thread.sleep(SLEEP_PERIOD * 1000);
-    				} catch (InterruptedException e) {
-    					break;
-    				}
-                }
-            }
-        }
-
         return info;
     }
+
+	private JobInfo monitor(JobLogParser logParser, long timeout) throws Exception {
+    	// Get the current number of seconds since the epoch. We'll refer
+    	// to this to make sure we stop waiting if we reach the timeout...
+    	long start = System.currentTimeMillis() / 1000;
+        
+		boolean done = false;
+		JobInfo info = null;
+		// Start monitoring
+		while (! done) {
+		    info = logParser.parse();
+		    if (info.hasExited()) {
+		    	done = true;
+		    }
+		    if (! done && timeout == Session.TIMEOUT_WAIT_FOREVER) {
+		        long now = System.currentTimeMillis() / 1000;
+		        if ((now - start) >= timeout) {
+		        	// We've reached the timeout
+		        	done = true;
+		        }
+		    }
+		    
+		    if (! done) {
+		    	try {
+		    		// SLEEP_PERIOD is in seconds
+					Thread.sleep(SLEEP_PERIOD * 1000);
+				} catch (InterruptedException e) {
+					break;
+				}
+		    }
+		}
+		return info;
+	}
 }

@@ -32,6 +32,8 @@ import org.junit.Test;
  */
 public class ArrayJobTest {
 
+	private static String contact = ArrayJobTest.class.getSimpleName();
+	
 	/**
 	 * Test array job submission without waiting for completion.
 	 */
@@ -42,7 +44,7 @@ public class ArrayJobTest {
 			String name = ArrayJobTest.class.getSimpleName();
 			session = SessionFactory.getFactory().getSession();
 
-			session.init("");
+			session.init(contact);
 			JobTemplate jt = session.createJobTemplate();
 
 			jt.setRemoteCommand("/bin/sleep");
@@ -52,6 +54,9 @@ public class ArrayJobTest {
 			// Now, make this an array job
 			int increment = 1;
 			List<String> jobIds = session.runBulkJobs(jt, 1, 10, increment);
+			
+			// Release resources for the job template
+			session.deleteJobTemplate(jt);
 			
 			assertNotNull(jobIds);
 			assertTrue(jobIds.size() > 0);
@@ -66,7 +71,7 @@ public class ArrayJobTest {
 					session.exit();
 					session = null;
 				}
-			} catch (DrmaaException e) {
+			} catch (Exception e) {
 				// ignored
 			}
 		}
@@ -82,16 +87,16 @@ public class ArrayJobTest {
 			String name = ArrayJobTest.class.getSimpleName();
 			session = SessionFactory.getFactory().getSession();
 	
-			session.init("");
+			session.init(contact);
 			JobTemplate jt = session.createJobTemplate();
 	
 			jt.setRemoteCommand("/bin/sleep");
 			jt.setArgs(Collections.singletonList("10"));
 			jt.setJobName(name);
 			String filePathBase = System.getProperty("user.home") + File.separator + 
-			ArrayJobTest.class.getSimpleName() + ".out";
-			jt.setOutputPath( ":" + filePathBase + ".$(Process)");
-;			
+				"HAHA" + ArrayJobTest.class.getSimpleName() + ".out";
+			jt.setOutputPath(":" + filePathBase + ".$(Process)");
+			
 			// Now, make this an array job;
 			int jobCount = 10;
 			int increment = 1;
@@ -106,7 +111,7 @@ public class ArrayJobTest {
 			
 			// Okay, all the jobs completed. Let's double check that.
 			boolean filesPresent = false;
-			for (int jobIndex = 1; jobIndex <= jobCount; jobIndex++) {
+			for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
 				String jobFilePath = filePathBase + "." + jobIndex;
 				File jobFile = new File(jobFilePath);
 				if (! jobFile.exists()) {

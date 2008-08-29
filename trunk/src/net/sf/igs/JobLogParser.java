@@ -121,8 +121,9 @@ public class JobLogParser {
 	 * the job and its status.
 	 * 
 	 * @return a {@link JobInfo} object
+	 * @throws IOException 
 	 */
-	public JobInfo parse() {
+	public JobInfo parse() throws IOException {
 		int status = 0x00000000;
 		
 		try {
@@ -173,9 +174,9 @@ public class JobLogParser {
 			}
 			buf.close();
 		} catch (FileNotFoundException e) {
-			e.printStackTrace();
+			throw e;
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw e;
 		}
 		
 		parsed = true;
