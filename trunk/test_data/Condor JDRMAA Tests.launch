@@ -19,5 +19,5 @@
 <booleanAttribute key="org.eclipse.jdt.launching.DEFAULT_CLASSPATH" value="false"/>
 <stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value=""/>
 <stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="condor-jdrmaa"/>
-<stringAttribute key="org.eclipse.jdt.launching.VM_ARGUMENTS" value="-Dcondor.jdrmaa.debug=1 -Dorg.ggf.drmaa.SessionFactory=net.sf.igs.SessionFactoryImpl"/>
+<stringAttribute key="org.eclipse.jdt.launching.VM_ARGUMENTS" value="-Dtest.data.dir=${workspace_loc:condor-jdrmaa}/test_data -Dcondor.jdrmaa.debug=1 -Dorg.ggf.drmaa.SessionFactory=net.sf.igs.SessionFactoryImpl"/>
 </launchConfiguration>
