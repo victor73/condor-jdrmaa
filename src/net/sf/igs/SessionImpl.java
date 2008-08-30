@@ -19,15 +19,18 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -116,7 +119,7 @@ public class SessionImpl implements Session {
         	}
             activeSession = false;
     	} else {
-    		throw new IllegalStateException();
+    		throw new NoActiveSessionException();
     	}
     }
 
@@ -647,12 +650,91 @@ public class SessionImpl implements Session {
      * @throws DrmaaException {@inheritDoc}
      */
     public void synchronize(List jobIds, long timeout, boolean dispose) throws DrmaaException {
-    	// TODO: Implement
-    	// this.nativeSynchronize((String[]) jobIds.toArray(new String[jobIds.size()]), timeout, dispose);
-    	// TODO: Handle case of JOB_IDS_SESSION_ALL
+    	if (! activeSession) {
+    		throw new NoActiveSessionException();
+    	}
+    	
+    	if (jobIds == null || jobIds.size() == 0) {
+    		throw new IllegalArgumentException("jobIds is null or empty."); 
+    	}
+    	
+    	// A flag to indicate whether to wait for all jobs in the session or not.
+    	boolean waitOnAllSessionJobs = false;
+    	
+    	Iterator<String> iter = jobIds.iterator();
+    	while (iter.hasNext()) {
+    		String jobId = (String) iter.next();
+    		// If any of the job IDs provided is the magical JOB_IDS_SESSION_ALL,
+    		// the stop checking because we need to wait for ALL ids belonging to
+    		// this session...
+    		if (jobId.equals(Session.JOB_IDS_SESSION_ALL))   {
+    			waitOnAllSessionJobs = true;
+    			break;
+    		} else if (! Util.validJobId(jobId)) {
+    			throw new InvalidJobException("Job " + jobId + " is invalid.");
+    		}
+    	}
+    	
+    	// So now bad IDs detected. Just need to check whether we need
+    	// to scan for all the IDs belonging to the session, or to use
+    	// the IDs provided by the caller.
+    	Set<String> toWaitFor = null;
+    	try {
+			if (waitOnAllSessionJobs) {
+				toWaitFor = getAllSessionJobs();
+			} else {
+				toWaitFor.addAll(jobIds);
+			}
+		} catch (IOException e) {
+			throw new InternalException(e.getMessage());
+		}
+    	
+    	// Cycle through the jobs to wait for
+    	iter = toWaitFor.iterator();
+    	
+    	long start = Util.getSecondsFromEpoch();
+    	long now = start;
+    	long deadline = start + timeout;
+    
+    	// Wait for each job ID. Mind the timeout! If we exceed our
+    	// deadline, break out of the loop...
+    	while (iter.hasNext()) {
+    		String jobId = (String) iter.next();
+    		
+    		// As we consume time, the timeouts get shorter and shorter...
+    		long individualTimeout = deadline - now;
+    		wait(jobId, individualTimeout);
+    		
+    		// TODO: Handle "disposal"
+    		// Okay, the job has completed. Do we remove/dispose of the
+    		// job from the session directory? Consult the "dispose" boolean...
+    		now = Util.getSecondsFromEpoch();
+    		if (now >= deadline) {
+    			// We've exceeded the limit of our overall timeout
+    			break;
+    		}
+    	}
     }
     
-    /**
+    private Set<String> getAllSessionJobs() throws IOException {
+		File[] idFiles = sessionDir.listFiles();
+		Set<String> idSet = new HashSet<String>();
+		for (File file : idFiles) {
+			try {
+				BufferedReader reader = new BufferedReader(new FileReader(file));
+				String jobId = null;
+				while ((jobId = reader.readLine()) != null) {
+					jobId = jobId.trim();
+					idSet.add(jobId);
+				}
+			} catch (IOException ioe) {
+				throw ioe;
+			}
+		}
+		return idSet;
+	}
+
+	/**
      * {@inheritDoc}
      * 
      * @param jobId {@inheritDoc}

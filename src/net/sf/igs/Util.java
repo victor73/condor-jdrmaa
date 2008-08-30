@@ -147,4 +147,14 @@ public class Util {
 		}
     	return available;
 	}
+	
+	/**
+	 * Get the current timestamp in seconds (from the epoch).
+	 * 
+	 * @return a <code>long</code>
+	 */
+	public static long getSecondsFromEpoch() {
+		long now = System.currentTimeMillis() / 1000;
+		return now;
+	}
 }
