@@ -35,50 +35,50 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * Tests whether support for the setErrorPath() method really works.
+ * Tests whether support for the {@link JobTemplate#setOutputPath(String) setOutputPath} method really works.
  */
-public class ErrorPathTest {
-	private static String name = ErrorPathTest.class.getSimpleName();
-	private static File errorFile = null;
-	private static String errorPath;
+public class OutputPathTest {
+	private static String name = OutputPathTest.class.getSimpleName();
+	private static File outputFile = null;
+	private static String outputPath;
 	
 	@BeforeClass
 	public static void setup() {
-		// Let's configure the error path for where the STDERR of the job should be saved to.
-		errorPath = System.getProperty("user.home") + File.separator + name + ".err";
+		// Let's configure the output path for where the STDOUT of the job should be saved to.
+		outputPath = System.getProperty("user.home") + File.separator + name + ".err";
 		
-		errorFile = new File(errorPath);
+		outputFile = new File(outputPath);
 		
-		deleteErrorFile();
+		deleteOutputFile();
 	}
 
-	private static void deleteErrorFile() {
+	private static void deleteOutputFile() {
 		// Delete the file if it's there (could be a leftover from previous tests)
-		if (errorFile.exists()) {
-			errorFile.delete();	
+		if (outputFile.exists()) {
+			outputFile.delete();	
 		}
 	}
 	
 	@Test
-	public void testErrorPath() {
+	public void testOutputPath() {
 
 		try {
 			Session session = SessionFactory.getFactory().getSession();
-			session.init("");
+			session.init(name);
 			JobTemplate jt = session.createJobTemplate();
 
-			String badArgument = "abcdefg";
+			String argument = "abcdefg";
 			
-			jt.setRemoteCommand("/bin/sleep");
-			jt.setArgs(Collections.singletonList(badArgument));
+			jt.setRemoteCommand("/bin/echo");
+			jt.setArgs(Collections.singletonList(argument));
 			
 			// Set the job name
 			jt.setJobName(name);
 
 			// Make sure we don't have the file around from previous test invocations
-			assertFalse(errorFile.exists());
+			assertFalse(outputFile.exists());
 			
-			jt.setErrorPath(":" + errorPath);
+			jt.setErrorPath(":" + outputPath);
 			String jobId = session.runJob(jt);
 			assertNotNull(jobId);
 			assertTrue(jobId.length() > 0);
@@ -89,17 +89,17 @@ public class ErrorPathTest {
 			// Exit the session
 			session.exit();
 			
-			// Now check that the STDERR file is actually there
-			assertTrue(errorFile.exists());
+			// Now check that the STDOUT file is actually there
+			assertTrue(outputFile.exists());
 			
 			// More detailed checking. Actually see if the error has the right information in it.
-			boolean correctFailure = false;
-			BufferedReader reader = new BufferedReader(new FileReader(errorFile));
+			boolean correctOutput = false;
+			BufferedReader reader = new BufferedReader(new FileReader(outputFile));
 			String line = reader.readLine();
-			if (line.contains(badArgument)) {
-				correctFailure = true;
+			if (line.contains(argument)) {
+				correctOutput = true;
 			}
-			assertTrue(correctFailure);
+			assertTrue(correctOutput);
 			
 		} catch (DrmaaException e) {
 			e.printStackTrace();
@@ -111,6 +111,6 @@ public class ErrorPathTest {
 	
 	@AfterClass
 	public static void cleanup() {
-		deleteErrorFile();
+		deleteOutputFile();
 	}
 }
