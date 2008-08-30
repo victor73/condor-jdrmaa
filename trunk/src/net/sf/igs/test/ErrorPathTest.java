@@ -42,6 +42,10 @@ public class ErrorPathTest {
 	private static File errorFile = null;
 	private static String errorPath;
 	
+	/**
+	 * Establish what the error file will be and ensure it's not already there
+	 * before the test begins.
+	 */
 	@BeforeClass
 	public static void setup() {
 		// Let's configure the error path for where the STDERR of the job should be saved to.
@@ -49,6 +53,7 @@ public class ErrorPathTest {
 		
 		errorFile = new File(errorPath);
 		
+		// Ensure we don't have an error file from previous tests
 		deleteErrorFile();
 	}
 
@@ -59,12 +64,16 @@ public class ErrorPathTest {
 		}
 	}
 	
+	/**
+	 * Ensure that the {@link JobTemplate#setErrorPath(String) setErrorPath}
+	 * implementation works properly.
+	 */
 	@Test
 	public void testErrorPath() {
 
 		try {
 			Session session = SessionFactory.getFactory().getSession();
-			session.init("");
+			session.init(ErrorPathTest.class.getSimpleName());
 			JobTemplate jt = session.createJobTemplate();
 
 			String badArgument = "abcdefg";
@@ -86,26 +95,34 @@ public class ErrorPathTest {
 			// Wait for the job to complete (wait indefinitely)
 			session.wait(jobId, Session.TIMEOUT_WAIT_FOREVER);
 
+			// Free job template resources
+			session.deleteJobTemplate(jt);
+			
 			// Exit the session
 			session.exit();
 			
+			// Sleep a little to allow I/O to happen
+			Thread.sleep(3000);
+			
 			// Now check that the STDERR file is actually there
 			assertTrue(errorFile.exists());
-			
+
 			// More detailed checking. Actually see if the error has the right information in it.
 			boolean correctFailure = false;
 			BufferedReader reader = new BufferedReader(new FileReader(errorFile));
-			String line = reader.readLine();
-			if (line.contains(badArgument)) {
-				correctFailure = true;
+			String line = null;
+			
+			while ((line = reader.readLine()) != null) {
+				if (line.contains(badArgument)) {
+					correctFailure = true;
+					break;
+				}
 			}
 			assertTrue(correctFailure);
 			
-		} catch (DrmaaException e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		} catch (Exception e) {
 			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 	

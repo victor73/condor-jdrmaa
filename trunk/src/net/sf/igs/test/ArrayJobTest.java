@@ -52,16 +52,21 @@ public class ArrayJobTest {
 			jt.setJobName(name);
 			
 			// Now, make this an array job
+			int jobCount = 10;
 			int increment = 1;
-			List<String> jobIds = session.runBulkJobs(jt, 1, 10, increment);
+			List<String> jobIds = session.runBulkJobs(jt, 1, jobCount, increment);
 			
 			// Release resources for the job template
 			session.deleteJobTemplate(jt);
 			
 			assertNotNull(jobIds);
 			assertTrue(jobIds.size() > 0);
-			assertEquals(jobIds.size(), 10);
+			assertEquals(jobIds.size(), jobCount);
 
+			for (String id : jobIds) {
+				assertNotNull(id);
+				assertTrue(id.length() > 0);
+			}
 		} catch (DrmaaException de) {
 			de.printStackTrace();
 			fail(de.getMessage());
@@ -94,12 +99,17 @@ public class ArrayJobTest {
 			jt.setArgs(Collections.singletonList("10"));
 			jt.setJobName(name);
 			String filePathBase = System.getProperty("user.home") + File.separator + 
-				"HAHA" + ArrayJobTest.class.getSimpleName() + ".out";
+				ArrayJobTest.class.getSimpleName() + ".out";
 			jt.setOutputPath(":" + filePathBase + ".$(Process)");
+
 			
 			// Now, make this an array job;
 			int jobCount = 10;
 			int increment = 1;
+			// Make sure we don't have any output files around from previous runs
+			cleanupFiles(filePathBase, jobCount);
+			
+			// Run the jobs
 			List<String> jobIds = session.runBulkJobs(jt, 1, jobCount, increment);
 			
 			assertNotNull(jobIds);
@@ -122,6 +132,8 @@ public class ArrayJobTest {
 			
 			// Did we get all the files that we expected?
 			assertTrue(filesPresent);
+			
+			cleanupFiles(filePathBase, jobCount);
 		} catch (DrmaaException de) {
 			de.printStackTrace();
 			fail(de.getMessage());
@@ -133,6 +145,17 @@ public class ArrayJobTest {
 				}
 			} catch (DrmaaException e) {
 				// ignored
+			}
+		}
+	}
+
+	private void cleanupFiles(String filePathBase, int jobCount) {
+		// Delete the files
+		for (int jobIndex = 0; jobIndex < jobCount; jobIndex++) {
+			String jobFilePath = filePathBase + "." + jobIndex;
+			File jobFile = new File(jobFilePath);
+			if (jobFile.exists()) {
+				jobFile.delete();
 			}
 		}
 	}
