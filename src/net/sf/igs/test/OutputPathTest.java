@@ -42,10 +42,14 @@ public class OutputPathTest {
 	private static File outputFile = null;
 	private static String outputPath;
 	
+	/**
+	 * Tests whether support for the {@link JobTemplate#setOutputPath(String) setOutputPath}
+	 * works properly.
+	 */
 	@BeforeClass
 	public static void setup() {
 		// Let's configure the output path for where the STDOUT of the job should be saved to.
-		outputPath = System.getProperty("user.home") + File.separator + name + ".err";
+		outputPath = System.getProperty("user.home") + File.separator + name + ".out";
 		
 		outputFile = new File(outputPath);
 		
@@ -54,8 +58,11 @@ public class OutputPathTest {
 
 	private static void deleteOutputFile() {
 		// Delete the file if it's there (could be a leftover from previous tests)
-		if (outputFile.exists()) {
-			outputFile.delete();	
+		if (outputFile != null && outputFile.exists()) {
+			boolean deleted = false;
+			do {
+				deleted = outputFile.delete();
+			} while (! deleted);
 		}
 	}
 	
@@ -78,7 +85,7 @@ public class OutputPathTest {
 			// Make sure we don't have the file around from previous test invocations
 			assertFalse(outputFile.exists());
 			
-			jt.setErrorPath(":" + outputPath);
+			jt.setOutputPath(":" + outputPath);
 			String jobId = session.runJob(jt);
 			assertNotNull(jobId);
 			assertTrue(jobId.length() > 0);
@@ -86,8 +93,14 @@ public class OutputPathTest {
 			// Wait for the job to complete (wait indefinitely)
 			session.wait(jobId, Session.TIMEOUT_WAIT_FOREVER);
 
+			// Free job template resources
+			session.deleteJobTemplate(jt);
+			
 			// Exit the session
 			session.exit();
+			
+			// Sleep a little to allow I/O to happen
+			Thread.sleep(3000);
 			
 			// Now check that the STDOUT file is actually there
 			assertTrue(outputFile.exists());
@@ -95,10 +108,14 @@ public class OutputPathTest {
 			// More detailed checking. Actually see if the error has the right information in it.
 			boolean correctOutput = false;
 			BufferedReader reader = new BufferedReader(new FileReader(outputFile));
-			String line = reader.readLine();
-			if (line.contains(argument)) {
-				correctOutput = true;
+			String line = null;
+			while ((line = reader.readLine()) != null) {
+				if (line.contains(argument)) {
+					correctOutput = true;
+					break;
+				}
 			}
+			reader.close();
 			assertTrue(correctOutput);
 			
 		} catch (DrmaaException e) {
