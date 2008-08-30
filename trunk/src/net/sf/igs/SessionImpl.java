@@ -433,6 +433,37 @@ public class SessionImpl implements Session {
 				writer.newLine();
 			}
 			
+			// Here we handle the job arguments, if any have been supplied.
+			// We try to adhere to the "new" way of specifying the arguments
+			// as explained in the 'condor_submit' man page.
+			if (job.getArgs() != null && job.getArgs().size() > 0) {
+				StringBuffer sb = new StringBuffer();
+				sb.append("\"");
+				char tick = '\'';
+				Iterator<String> iter = job.getArgs().iterator();
+				while (iter.hasNext()) {
+					String arg = iter.next();
+					if (arg.contains("\"")) {
+						arg = arg.replace("\"", "\"\"");
+					}
+					// Replace ticks with double ticks
+					if (arg.contains("\'")) {
+						arg = arg.replace("\'", "\'\'");
+					}
+					if (arg.contains(" ")) {
+						sb.append(tick).append(arg).append(tick);
+					} else {
+						sb.append(arg);
+					}
+					if (iter.hasNext()) {
+						sb.append(" ");
+					}
+				}
+				sb.append("\"");
+				writer.write("Arguments=" + sb.toString());
+				writer.newLine();
+			}
+			
 			// If the working directory has been set, configure it.
 			if (job.getWorkingDirectory() != null) {
 				writer.write("InitialDir = " + job.getWorkingDirectory());
@@ -444,6 +475,14 @@ public class SessionImpl implements Session {
 				writer.write(job.getNativeSpecification());
 				writer.newLine();
 			}
+			
+			// Handle the job category. This is handled the same way as the
+			// native specification.
+			if (job.getJobCategory() != null) {
+				writer.write(job.getJobCategory());
+				writer.newLine();
+			}
+			
 			// Send email notifications?
 			if (job.getBlockEmail()) {
 				writer.write("Notification=Never");
@@ -466,6 +505,9 @@ public class SessionImpl implements Session {
 				String input = job.getInputPath();
 				input = input.replace(JobTemplate.PARAMETRIC_INDEX, "$(Process)");
 				input = input.replace(JobTemplate.HOME_DIRECTORY,  "$ENV(HOME)");
+				if (input.startsWith(":")) {
+					input = input.substring(1);
+				}
 				writer.write("Input=" + input);
 				writer.newLine();
 				// Check whether to transfer the input files
@@ -496,9 +538,12 @@ public class SessionImpl implements Session {
 			
 			// Handle the error path if specified. Do token replacement if necessary.
 			if (job.getErrorPath() != null && ! job.getJoinFiles()) {
-				String error = job.getOutputPath();
+				String error = job.getErrorPath();
 				error = error.replace(JobTemplate.PARAMETRIC_INDEX, "$(Process)");
 				error = error.replace(JobTemplate.HOME_DIRECTORY, "$ENV(HOME)");
+				if (error.startsWith(":")) {
+					error = error.substring(1);
+				}
 				writer.write("Error=" + error);
 				writer.newLine();
 			}
