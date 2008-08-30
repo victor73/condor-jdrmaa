@@ -26,7 +26,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.util.Collections;
 
-import org.ggf.drmaa.DrmaaException;
 import org.ggf.drmaa.JobTemplate;
 import org.ggf.drmaa.Session;
 import org.ggf.drmaa.SessionFactory;
@@ -35,7 +34,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * Tests whether support for the setErrorPath() method really works.
+ * Tests whether support for the {@link JobTemplate#setErrorPath(String) setErrorPath}
+ * method works properly.
  */
 public class ErrorPathTest {
 	private static String name = ErrorPathTest.class.getSimpleName();
@@ -118,6 +118,7 @@ public class ErrorPathTest {
 					break;
 				}
 			}
+			reader.close();
 			assertTrue(correctFailure);
 			
 		} catch (Exception e) {
