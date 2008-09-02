@@ -514,7 +514,7 @@ public class SessionImpl implements Session {
 				writer.write("Input=" + input);
 				writer.newLine();
 				// Check whether to transfer the input files
-				if (job.getTransferFiles().getInputStream()) {
+				if (job.getTransferFiles() != null && job.getTransferFiles().getInputStream()) {
 					writer.write("transfer_input_files=i");
 					writer.newLine();
 				}
