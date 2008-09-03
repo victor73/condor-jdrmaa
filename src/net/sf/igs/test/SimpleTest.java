@@ -60,7 +60,7 @@ public class SimpleTest {
 
 			// Exit the session
 			session.exit();
-		} catch (DrmaaException de) {
+		} catch (Exception de) {
 			de.printStackTrace();
 			fail(de.getMessage());
 		}
@@ -98,7 +98,7 @@ public class SimpleTest {
 			
 			// Exit the session
 			session.exit();
-		} catch (DrmaaException de) {
+		} catch (Exception de) {
 			de.printStackTrace();
 			fail(de.getMessage());
 		}

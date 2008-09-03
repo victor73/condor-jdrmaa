@@ -62,6 +62,9 @@ public class OutputPathTest {
 			
 			do {
 				deleted = outputFile.delete();
+				if (! deleted) {
+					System.err.println("Unable to delete " + outputFile.getAbsolutePath());
+				}
 			} while (! deleted);
 		}
 	}
