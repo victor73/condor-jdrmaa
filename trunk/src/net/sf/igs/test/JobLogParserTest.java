@@ -56,6 +56,7 @@ public class JobLogParserTest {
 			throw new Exception("Invalid path to the test data directory: " + testDataDir);
 		}
 	}
+	
 	/**
 	 * Test the creation of parsers
 	 */
