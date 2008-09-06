@@ -88,16 +88,19 @@ public class EnvironmentTest {
 			JobInfo jobInfo = session.wait(jobId, Session.TIMEOUT_WAIT_FOREVER);
 
 			assertNotNull(jobInfo);
-			
+
 			// Sleep a little for I/O to catch up
+			// TODO: This setting is arbitrary. Need to make configurable (System property?)
 			Thread.sleep(3000);
+			
+			// Verify that the output file is actually there.
+			assertTrue(outputFile.exists());
 			
 			// Read through the output file and look for the environment value in it.
 			BufferedReader reader = new BufferedReader(new FileReader(outputFile));
 			String line = null;
 			boolean containsCorrectOutput = false;
 			while ((line = reader.readLine()) != null) {
-				System.out.println(line);
 				if (line.contains(envVariableName) && line.contains(envVariableValue)) {
 					containsCorrectOutput = true;
 					break;
