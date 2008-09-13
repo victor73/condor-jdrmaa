@@ -19,7 +19,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -73,6 +72,9 @@ public class SessionImpl implements Session {
     
     /**
      * <p>Controls Condor jobs.</p>
+     * 
+     * <p>This method can be used to control jobs submitted outside of the scope
+     * of the DRMAA session as long as the job identifier for the job is known.</p>
      *
      * {@inheritDoc}
      *
@@ -84,17 +86,17 @@ public class SessionImpl implements Session {
      *
      * TODO: Complete
      * <p>The DRMAA terminate operation is equivalent to the use of</p>
-     *
-     * <p>Only user hold and user suspend can be controlled via control().  For
-     * affecting system hold and system suspend states the appropriate DRM
-     * interfaces must be used.</p>
-     *
+     * 
      * @param jobId {@inheritDoc}
      * @param action {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
     public void control(String jobId, int action) throws DrmaaException {
-      	// this.nativeControl(jobId, action);
+    	// Check that we have an active session. You can't do this operation unless
+    	// we are in an active session...
+        if (! activeSession) {
+        	throw new NoActiveSessionException(); 
+        }
     	// TODO: Implement
     }
     
@@ -156,25 +158,31 @@ public class SessionImpl implements Session {
      */
     public String getDrmaaImplementation() {
         /* Because the DRMAA implementation is tightly bound to the DRM, there's
-         * no need to distinguish between them.  Version information can be
-         * gotten from getVersion() and language information is self-evident. */
+         * no need to distinguish between them. Version information can be
+         * retrieved from getVersion() and language information is self-evident. */
         return this.getDrmSystem();
     }
     
     /**
-     * <p>Get the job program status.</p>
+     * Get the job program status.
      *
      * {@inheritDoc}
-     *
-     * <p>The control method can be used to control job submitted outside of the scope
-     * of the DRMAA session as long as the job identifier for the job is known.</p>
      * @return {@inheritDoc}
      * @param jobId {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
     public int getJobProgramStatus(String jobId) throws DrmaaException {
+    	// Check that we have an active session. You can't do this operation unless
+    	// we are in an active session...
+        if (! activeSession) {
+        	throw new NoActiveSessionException(); 
+        }
+        
         // TODO: Implement
-    	return 0;
+    	if (true) {
+    		throw new RuntimeException("Not yet implemented.");
+    	}
+        return 0;
     }
     
     /**
@@ -275,6 +283,7 @@ public class SessionImpl implements Session {
     		throw new InvalidContactStringException();
     	}
     	
+    	// Check that we actually have Condor installed.
     	boolean condorPresent = Util.isCondorAvailable();
     	if (! condorPresent) {
     		throw new InternalException("No Condor installation found.");
@@ -314,25 +323,32 @@ public class SessionImpl implements Session {
      * @return {@inheritDoc}
      * @param start {@inheritDoc}
      * @param end {@inheritDoc}
-     * @param incr {@inheritDoc}
+     * @param increment {@inheritDoc}
      * @param jt {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
-    public List<String> runBulkJobs(JobTemplate jt, int start, int end, int incr) throws DrmaaException {
+    public List<String> runBulkJobs(JobTemplate jt, int start, int end, int increment) throws DrmaaException {
+    	// Check that we have an active session. You can't do this operation unless
+    	// we are in an active session...
         if (! activeSession) {
         	throw new NoActiveSessionException(); 
         }
+        
     	if (jt == null) {
             throw new NullPointerException("JobTemplate is null");
         } else if (! (jt instanceof JobTemplateImpl)) {
             throw new InvalidJobTemplateException();
         }
 
-        if (incr != 1) {
+    	// TODO: It appears that Condor doesn't handle increments other than 1. Verify.
+        if (increment != 1) {
 			throw new InvalidJobTemplateException(
 					"This version of Condor-JDRMAA only supports increments of 1");
 		}
 
+        // The start value must be greater than the end value. Otherwise we are
+        // decrementing.
+        // TODO: Determine if Condor is able to decrement. Suspect the answer is no.
 		if (start > end) {
 			throw new InvalidJobTemplateException(
 					"This version of Condor-JDRMAA does not support decreasing ranges.");
@@ -341,6 +357,7 @@ public class SessionImpl implements Session {
 		try {
 			int number = end - start + 1;
 			File submitFile = createSubmitFile(jt, number);
+			
 			// The submit() method returns the first job id regardless of whether the job
 			// is a singleton or an array job. Therefore, we should always get a job ID with
 			// a trailing ".0" on it. In the runBulkJobs context, we remove this and recalculate
@@ -362,20 +379,30 @@ public class SessionImpl implements Session {
     }
 
     /**
-     * The runJob() method submits a Condor job with attributes defined in
+     * {@inheritDoc}
+     * 
+     * This runJob() method submits a Condor job with attributes defined in
      * the DRMAA JobTemplate <i>jt</i>. On success, the job identifier is
      * returned.
+     * 
      * @param jt {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @return {@inheritDoc}
      */
     public String runJob(JobTemplate jt) throws DrmaaException {
+    	// Check that we have an active session. You can't do this operation unless
+    	// we are in an active session...
+        if (! activeSession) {
+        	throw new NoActiveSessionException(); 
+        }
+        
     	String jobId = null;
         if (jt == null) {
             throw new NullPointerException("JobTemplate is null");
         } else if (! (jt instanceof JobTemplateImpl)) {
             throw new InvalidJobTemplateException();
         }
+        
         try {
         	File submitFile = createSubmitFile(jt, 1);
 			jobId = submit(submitFile);
@@ -406,19 +433,23 @@ public class SessionImpl implements Session {
      * 
      * @param job a {@link JobTemplate}
      * @param number the number of times to execute the job
+     * @see "condor_submit man page"
      * @return a {@link File} for the submit file created
      * @throws Exception
      */
     private File createSubmitFile(JobTemplate job, int number) throws Exception {
+    	// Can't submit 0 or negative jobs, can we?
     	if (number <= 0) {
     		throw new IllegalArgumentException("Job count must be a positive integer.");
     	}
     	
+    	// The submit file will be a temporary file.
     	File tempFile = null;
     	
 		try {
 	    	tempFile = File.createTempFile(SUBMIT_FILE_PREFIX, null);
 			BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile));
+			
 			writer.write("# Condor Submit file");
 			writer.newLine();
 			writer.write("# Generated by Condor-JDRMAA");
@@ -431,6 +462,9 @@ public class SessionImpl implements Session {
 			writer.newLine();
 			writer.write("Executable=" + job.getRemoteCommand());
 			writer.newLine();
+			
+			// Should jobs be submitted into a holding pattern
+			// (don't immediately start running them)?
 			if (job.getJobSubmissionState() == JobTemplate.HOLD_STATE) {
 				writer.write("Hold=true");
 				writer.newLine();
@@ -491,6 +525,9 @@ public class SessionImpl implements Session {
 				writer.write("Notification=Never");
 			}
 			
+			// If the caller has specified a start time, then we add special
+			// Condor settings into the submit file. Otherwise, don't do anything
+			// special...
 			if (job.getStartTime() != null) {
 				long time = job.getStartTime().getTimeInMillis() / 1000;
 				writer.write("PeriodicRelease=(CurrentTime > " + time + ")");
@@ -499,11 +536,16 @@ public class SessionImpl implements Session {
 				writer.newLine();
 			}
 			
+			// Handle the naming of the job.
 			if (job.getJobName() != null) {
+				// TODO: The C implementation has a "+" character in front of the
+				// directive. We add it here as well. Find out why (or if) this is necessary.
 				writer.write("+JobName=" + job.getJobName());
 				writer.newLine();
 			}
 			
+			// Handle the job input path. Care must be taken to replace DRMAA tokens
+			// with tokens that Condor understands.
 			if (job.getInputPath() != null) {
 				String input = job.getInputPath();
 				input = input.replace(JobTemplate.PARAMETRIC_INDEX, "$(Process)");
@@ -520,6 +562,8 @@ public class SessionImpl implements Session {
 				}
 			}
 			
+			// Handle the job output path. Care must be taken to replace DRMAA tokens
+			// with tokens that Condor understands.
 			if (job.getOutputPath() != null) {
 				String output = job.getOutputPath();
 				output = output.replace(JobTemplate.PARAMETRIC_INDEX, "$(Process)");
@@ -558,20 +602,31 @@ public class SessionImpl implements Session {
 				writer.newLine();
 			}
 			
+			// Handle the case of the user/caller setting the environment for the job.
 			if (job.getJobEnvironment() != null && ! job.getJobEnvironment().isEmpty()) {
 				Map<String, String> environment = job.getJobEnvironment();
 				StringBuffer sb = new StringBuffer();
 				Iterator<String> iter = environment.keySet().iterator();
+				
+				// Condor has a peculiar way of handling environment variables in the submit
+				// file. Here we try to make it work by escaping quotes properly.
+				// TODO: This logic should perhaps be put into a special condorEnvEscape(String)
+				// method in Util.
+				// TODO: Needs testing
 				while (iter.hasNext()) {
 					String name = (String) iter.next();
 					String value = (String) environment.get(name);
+					
+					// Replace quotes with double quotes.
 					value = value.replace("\"", "\"\"");
 					String pair = name + "=" + value;
 					sb.append(pair);
+					// Append a space, unless it's the last variable.
 					if (! iter.hasNext()) {
 						sb.append(" ");
 					}
 				}
+				// This is the Condor directive for setting the job environment.
 				writer.write("Environment=\"" + sb.toString() + "\"");
 				writer.newLine();
 			}
@@ -581,12 +636,14 @@ public class SessionImpl implements Session {
 			// just use the first one...
 			if (job.getEmail() != null && job.getEmail().size() > 0) {
 				if (job.getEmail().size() > 1) {
-					System.err.println("Warning: Only 1 email address is supported.");
+					System.err.println(SessionImpl.class.getName() + " warning: Only 1 email notification address is supported.");
 				}
 				writer.write("Notify_user=" + (String) job.getEmail().iterator().next());
 				writer.newLine();
 			}
 			
+			// Every Condor submit file needs a Queue directive to make the job go.
+			// Array jobs will have a Queue count greater than 1.
 			writer.write("Queue " + number);
 			writer.newLine();
 			
@@ -604,6 +661,8 @@ public class SessionImpl implements Session {
      * for debugging perhaps, define the condor.jdrmaa.debug system property.
      */
     private String submit(File submitFile) throws Exception {
+    	// Before we do anything, check that the submit file actually exists and is
+    	// readable. Otherwise, we can't submit anything can we?
     	if (! (submitFile.exists() && submitFile.isFile() && submitFile.canRead())) {
     		throw new IllegalArgumentException("Submit file does not exist or isn't readable.");
     	}
@@ -632,11 +691,13 @@ public class SessionImpl implements Session {
 			e.printStackTrace();
 			throw e;
 		} finally {
+			// Delete the submit file. That is, unless we are in debug mode.
+			// If we are debugging, the submit file should be left behind for
+			// closer inspection/analysis.
 			if (System.getProperty("condor.jdrmaa.debug") == null) {
 				submitFile.delete();
 			}
 		}
-
 
 		return jobID;
     }
@@ -650,10 +711,13 @@ public class SessionImpl implements Session {
      * @throws DrmaaException {@inheritDoc}
      */
     public void synchronize(List jobIds, long timeout, boolean dispose) throws DrmaaException {
+    	// Check that we have an active session. You can't do this operation unless
+    	// we are in an active session...
     	if (! activeSession) {
     		throw new NoActiveSessionException();
     	}
     	
+    	// Check that we haven't been given a null or an empty set of IDs to synchronize on.
     	if (jobIds == null || jobIds.size() == 0) {
     		throw new IllegalArgumentException("jobIds is null or empty."); 
     	}
@@ -681,17 +745,31 @@ public class SessionImpl implements Session {
     	Set<String> toWaitFor = null;
     	try {
 			if (waitOnAllSessionJobs) {
+				// We've been told to wait for all the session jobs. Therefore
+				// our set of job IDs needs to contain all the job IDs belonging
+				// to the session. That means we need to scan the session directory
+				// for all the job IDs belonging to it. For this, we make use of a
+				// private method...
 				toWaitFor = getAllSessionJobs();
 			} else {
+				// Okay, in this case, we only need to wait for the job IDs that have
+				// been explicitly passed to us. None of the IDs was equal to the
+				// special value indicating that we should wait for all... Therefore
+				// we create a new set, and all the IDs that we've been told about.
+				toWaitFor = new HashSet<String>();
 				toWaitFor.addAll(jobIds);
 			}
 		} catch (IOException e) {
 			throw new InternalException(e.getMessage());
 		}
     	
-    	// Cycle through the jobs to wait for
+    	// We now know what job IDs to wait for. Cycle through each and wait for it.
+		// To be able to do this, we should iterate through the set. The iterator()
+		// method to the rescue!
     	iter = toWaitFor.iterator();
     	
+    	// Let's determine when we started waiting and how long we are able to wait
+    	// by computing the deadline.
     	long start = Util.getSecondsFromEpoch();
     	long now = start;
     	long deadline = start + timeout;
@@ -716,6 +794,14 @@ public class SessionImpl implements Session {
     	}
     }
     
+    /**
+     * This method scans the session directory for job files. For each found
+     * file, the file represents a job belonging to that session. The file is opened
+     * and the job ID is read from it.
+     * 
+     * @return a {@link Set} of String job IDs
+     * @throws IOException
+     */
     private Set<String> getAllSessionJobs() throws IOException {
 		File[] idFiles = sessionDir.listFiles();
 		Set<String> idSet = new HashSet<String>();
@@ -725,7 +811,10 @@ public class SessionImpl implements Session {
 				String jobId = null;
 				while ((jobId = reader.readLine()) != null) {
 					jobId = jobId.trim();
-					idSet.add(jobId);
+					//  Do one more check to make sure we have a good looking ID.
+					if (Util.validJobId(jobId)) {
+						idSet.add(jobId);
+					}
 				}
 			} catch (IOException ioe) {
 				throw ioe;
