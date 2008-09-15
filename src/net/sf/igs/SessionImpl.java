@@ -22,19 +22,16 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.ggf.drmaa.AlreadyActiveSessionException;
 import org.ggf.drmaa.DrmaaException;
+import org.ggf.drmaa.HoldInconsistentStateException;
 import org.ggf.drmaa.InternalException;
 import org.ggf.drmaa.InvalidContactStringException;
 import org.ggf.drmaa.InvalidJobException;
@@ -42,6 +39,7 @@ import org.ggf.drmaa.InvalidJobTemplateException;
 import org.ggf.drmaa.JobInfo;
 import org.ggf.drmaa.JobTemplate;
 import org.ggf.drmaa.NoActiveSessionException;
+import org.ggf.drmaa.ResumeInconsistentStateException;
 import org.ggf.drmaa.Session;
 import org.ggf.drmaa.Version;
 
@@ -53,6 +51,14 @@ import org.ggf.drmaa.Version;
  * @see "http://www.cs.wisc.edu/condor/"
  */
 public class SessionImpl implements Session {
+	
+    /**
+     * This is the name of the system property that should be set if debugging
+     * for the library should be activated. When debugging mode is on, generated
+     * condor submit files are not removed after submission...
+     */
+    public static final String CONDOR_JDRMAA_DEBUG = "condor.jdrmaa.debug";
+	
     private static final String SUBMIT_FILE_PREFIX = "condor_drmaa_";
 	private static final String DRM_SYSTEM = "Condor";
 	private String contact = "";
@@ -84,8 +90,7 @@ public class SessionImpl implements Session {
      * TODO: Complete
      * <p>The DRMAA hold/release operations are equivalent to the use of</p>
      *
-     * TODO: Complete
-     * <p>The DRMAA terminate operation is equivalent to the use of</p>
+     * <p>The DRMAA terminate operation is equivalent to the use of <code>condor_rm</code>.</p>
      * 
      * @param jobId {@inheritDoc}
      * @param action {@inheritDoc}
@@ -97,8 +102,82 @@ public class SessionImpl implements Session {
         if (! activeSession) {
         	throw new NoActiveSessionException(); 
         }
-    	// TODO: Implement
+    	
+        // Check if we have a valid job ID
+    	if (! Util.validJobId(jobId)) {
+    		throw new InvalidJobException();
+    	}
+    	
+    	// A collection for all the job IDs that we need to control.
+    	Set<String> jobIDs = new HashSet<String>();
+    	
+    	try {
+        	// Check if we are operating on all job IDs. If we are, then get all
+        	// the job IDs for this session and perform the control on all of them
+        	if (jobId.equals(Session.JOB_IDS_SESSION_ALL)) {
+        		// Get all the job IDs for this session and put them into the set.
+        		jobIDs.addAll(getAllSessionJobs());
+        	} else {
+        		// Only 1 job ID to control...
+        		jobIDs.add(jobId);
+        	}
+    	} catch (IOException ioe) {
+    		throw new InternalException("Unable to scan session for job IDs: " + ioe.getMessage());
+    	}
+
+    	
+    	try {
+			// Iterate through the IDs and control them as specified.
+			for (String idToControl : jobIDs) {
+				controlHelper(action, idToControl);
+			}
+		} catch (CondorExecException e) {
+			e.printStackTrace();
+			throw new InternalException("Unable to run condor binary: " + e.getMessage());
+		}
     }
+
+	/**
+	 * @param action
+	 * @param idToControl
+	 * @throws CondorExecException
+	 * @throws HoldInconsistentStateException
+	 * @throws ResumeInconsistentStateException
+	 */
+	private void controlHelper(int action, String idToControl)
+			throws CondorExecException, DrmaaException {
+		switch (action) {
+			case SessionImpl.TERMINATE:
+				// Kill the job. This is equivalent to invoking condor_rm
+				CondorExec.terminate(idToControl);
+				break;
+			case SessionImpl.HOLD:
+			case SessionImpl.SUSPEND:
+				// Put the job on hold
+				// TODO: Check if we can run the suspension.
+				boolean ableToHold = true;
+				if (ableToHold) {
+					CondorExec.suspend(idToControl);
+				} else {
+					throw new HoldInconsistentStateException();
+				}
+				break;
+			case SessionImpl.RELEASE:
+			case SessionImpl.RESUME:
+				// Release the job if it's in a hold status
+				// TODO: Check if we can run the resume command
+				boolean ableToResume = true;
+				if (ableToResume) {
+					CondorExec.release(idToControl);	
+				} else {
+					throw new ResumeInconsistentStateException();
+				}
+
+				break;
+			default:
+				throw new IllegalArgumentException("Invalid control action.");
+		}
+	}
     
     /**
      * The exit() method closes the DRMAA session for all threads and must be
@@ -658,7 +737,11 @@ public class SessionImpl implements Session {
     /*
      * Invokes 'condor_submit' to submit the job to the Condor scheduler. The submit
      * file is deleted after submission is complete. To leave the submit file in place,
-     * for debugging perhaps, define the condor.jdrmaa.debug system property.
+     * for debugging perhaps, define the condor.jdrmaa.debug system property. The difference
+     * between this submit() method and the one in CondorExec, is that this one handles the
+     * deletion of the submit file if the condor.drmaa.debug system property is not set.
+     * The version in CondorExec is dumb and basically just runs the "condor_submit"
+     * binary...
      */
     private String submit(File submitFile) throws Exception {
     	// Before we do anything, check that the submit file actually exists and is
@@ -670,31 +753,14 @@ public class SessionImpl implements Session {
     	String jobID = null;
     	
     	try {
-    		String submitPath = submitFile.getAbsolutePath();
-        	String[] command = {"condor_submit", submitPath};
-        	Process process = Runtime.getRuntime().exec(command);
-			process.waitFor();
-	    	Reader reader = new InputStreamReader(process.getInputStream());
-	    	BufferedReader bufReader = new BufferedReader(reader);
-	    	String line = null;
-	    	while ( (line = bufReader.readLine()) != null ) {
-	    		if (line.contains("submitted to cluster")) {
-	    			Pattern pattern = Pattern.compile("\\d+\\.$");
-	    			Matcher matcher = pattern.matcher(line);
-	    			if (matcher.find()) {
-	    				jobID = matcher.group();
-	    				jobID = jobID + "0";
-	    			}
-	    		}
-	    	}
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw e;
+        	jobID = CondorExec.submit(submitFile);
+		} catch (CondorExecException cee) {
+			throw cee;
 		} finally {
 			// Delete the submit file. That is, unless we are in debug mode.
 			// If we are debugging, the submit file should be left behind for
 			// closer inspection/analysis.
-			if (System.getProperty("condor.jdrmaa.debug") == null) {
+			if (System.getProperty(CONDOR_JDRMAA_DEBUG) == null) {
 				submitFile.delete();
 			}
 		}
@@ -891,6 +957,7 @@ public class SessionImpl implements Session {
 		    if (info.hasExited()) {
 		    	done = true;
 		    }
+		    
 		    if (! done && timeout == Session.TIMEOUT_WAIT_FOREVER) {
 		        long now = System.currentTimeMillis() / 1000;
 		        if ((now - start) >= timeout) {
