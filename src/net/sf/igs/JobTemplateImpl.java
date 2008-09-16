@@ -262,6 +262,7 @@ public class JobTemplateImpl implements JobTemplate {
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setJobSubmissionState(int)
@@ -280,6 +281,7 @@ public class JobTemplateImpl implements JobTemplate {
     /**
      * Sets the environment values that define the remote environment.  The
      * values override the remote environment values if there is a collision.
+     * 
      * @param env {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
@@ -598,13 +600,13 @@ public class JobTemplateImpl implements JobTemplate {
      *
      * <p>When the DRMAA job template is used for bulk job submission (see also
      * {@link org.ggf.drmaa.Session#runBulkJobs(org.ggf.drmaa.JobTemplate,int,int,int) runBulkJobs}
-     * the <CODE>PARAMETRIC_INDEX</CODE> placeholder can be used at any position
+     * the <code>PARAMETRIC_INDEX</code> placeholder can be used at any position
      * within the file name to cause a substitution with the parametric
-     * job's index.  A <CODE>HOME_DIRECTORY</CODE> placeholder at the beginning
+     * job's index.  A <code>HOME_DIRECTORY</code> placeholder at the beginning
      * of the file path denotes the remaining portion of the file path as a
      * relative file specification to be resolved relative to the job user's
      * home directory at the host where the file is located.  A
-     * <CODE>WORKING_DIRECTORY</CODE> placeholder at the beginning of file path
+     * <code>WORKING_DIRECTORY</code> placeholder at the beginning of file path
      * denotes the remaining portion of the file path as a relative file
      * specification to be resolved relative to the job's working directory at
      * the host where the file is located.  The file name must be specified in a
@@ -655,6 +657,7 @@ public class JobTemplateImpl implements JobTemplate {
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setJoinFiles(boolean)

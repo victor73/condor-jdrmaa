@@ -259,17 +259,20 @@ public class JobLogParser {
 		try {
 			String jobLog = args[0];
 			File jobLogFile = new File(jobLog);
-			JobLogParser jlp;
-			jlp = new JobLogParser(jobLogFile);
+			JobLogParser jlp = new JobLogParser(jobLogFile);
 			JobInfo info = jlp.parse();
-			Map resources = info.getResourceUsage();
-			Iterator iter = resources.keySet().iterator();
+			Map<String, String> resources = info.getResourceUsage();
+			
+			// Now that we have the resources map, iterator through the keys
+			// and output the values in an intelligible way.
+			Iterator<String> iter = resources.keySet().iterator();
 			while (iter.hasNext()) {
 				String key = (String) iter.next();
 				System.out.println(key + "=" + resources.get(key));
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
+			System.exit(1);
 		}
 	}
 }
