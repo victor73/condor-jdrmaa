@@ -571,10 +571,12 @@ public class SessionImpl implements Session {
 					} else {
 						sb.append(arg);
 					}
+					// Only append a space if there are more...
 					if (iter.hasNext()) {
 						sb.append(" ");
 					}
 				}
+				// Finish off with the closing quote
 				sb.append("\"");
 				writer.write("Arguments=" + sb.toString());
 				writer.newLine();
@@ -582,7 +584,7 @@ public class SessionImpl implements Session {
 			
 			// If the working directory has been set, configure it.
 			if (job.getWorkingDirectory() != null) {
-				writer.write("InitialDir = " + job.getWorkingDirectory());
+				writer.write("InitialDir=" + job.getWorkingDirectory());
 				writer.newLine();
 			}
 			
@@ -715,7 +717,8 @@ public class SessionImpl implements Session {
 			// just use the first one...
 			if (job.getEmail() != null && job.getEmail().size() > 0) {
 				if (job.getEmail().size() > 1) {
-					System.err.println(SessionImpl.class.getName() + " warning: Only 1 email notification address is supported.");
+					System.err.println(SessionImpl.class.getName() + 
+							" warning: Only 1 email notification address is supported.");
 				}
 				writer.write("Notify_user=" + (String) job.getEmail().iterator().next());
 				writer.newLine();
