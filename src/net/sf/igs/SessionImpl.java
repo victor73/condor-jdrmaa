@@ -41,6 +41,7 @@ import org.ggf.drmaa.JobTemplate;
 import org.ggf.drmaa.NoActiveSessionException;
 import org.ggf.drmaa.ResumeInconsistentStateException;
 import org.ggf.drmaa.Session;
+import org.ggf.drmaa.SimpleJobTemplate;
 import org.ggf.drmaa.Version;
 
 /**
@@ -285,6 +286,9 @@ public class SessionImpl implements Session {
         return jt;
     }
     
+    /*
+     * TODO: Complete some documentation here.
+     */
     private File getJobTemplateFile(int templateId) {
         File jtFile = new File(sessionDir, jobTemplateId + "");
         return jtFile;
@@ -296,7 +300,7 @@ public class SessionImpl implements Session {
      * @param jt {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
-    public void deleteJobTemplate(JobTemplate jt) throws DrmaaException {
+    public void deleteJobTemplate(JobTemplate jt) throws DrmaaException {		
         if (jt == null) {
             throw new NullPointerException("JobTemplate is null");
         } else if (jt instanceof JobTemplateImpl) {
@@ -407,6 +411,11 @@ public class SessionImpl implements Session {
      * @throws DrmaaException {@inheritDoc}
      */
     public List<String> runBulkJobs(JobTemplate jt, int start, int end, int increment) throws DrmaaException {
+		// See Section 7.3 of the Java DRMAA spec
+		if (jt instanceof SimpleJobTemplate) {
+			throw new InvalidJobTemplateException();
+		}
+		
     	// Check that we have an active session. You can't do this operation unless
     	// we are in an active session...
         if (! activeSession) {
@@ -469,6 +478,11 @@ public class SessionImpl implements Session {
      * @return {@inheritDoc}
      */
     public String runJob(JobTemplate jt) throws DrmaaException {
+		// Section 7.3 of the Java DRMAA spec
+		if (jt instanceof SimpleJobTemplate) {
+			throw new InvalidJobTemplateException();
+		}
+		
     	// Check that we have an active session. You can't do this operation unless
     	// we are in an active session...
         if (! activeSession) {
@@ -494,12 +508,19 @@ public class SessionImpl implements Session {
     }
 
 	/**
-	 * @param jt
-	 * @param jobId
+	 * Save the job ID in the session file for the job.
+	 * 
+	 * @param jt a {@link JobTemplate}
+	 * @param jobId a <code>String</code>
 	 * @throws IOException
+	 * @throws DrmaaException 
 	 */
 	private void saveJobIdInSessionFile(JobTemplate jt, String jobId)
-			throws IOException {
+			throws IOException, DrmaaException {
+		// Section 7.3 of the Java DRMAA spec
+		if (jt instanceof SimpleJobTemplate) {
+			throw new InvalidJobTemplateException();
+		}
 		File templateFile = getJobTemplateFile(((JobTemplateImpl) jt).getId());
 		BufferedWriter w = new BufferedWriter(new FileWriter(templateFile));
 		w.write(jobId);
@@ -947,6 +968,9 @@ public class SessionImpl implements Session {
         return info;
     }
 
+    /*
+     * TODO: Complete documentation
+     */
 	private JobInfo monitor(JobLogParser logParser, long timeout) throws Exception {
     	// Get the current number of seconds since the epoch. We'll refer
     	// to this to make sure we stop waiting if we reach the timeout...

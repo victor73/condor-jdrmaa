@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 import java.text.ParseException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -229,12 +230,18 @@ public class JobTemplateImpl implements JobTemplate {
      * @see #setArgs(List)
      */
     public List<String> getArgs() throws DrmaaException {
-        return args;
+        List<String> returnValue = null;
+
+        if (args != null) {
+            returnValue = Collections.unmodifiableList(args);
+        }
+
+        return returnValue;
     }
     
     /**
      * Specifies the job state at submission. The possible values are
-     * {@link #HOLD_STATE} and <code>ACTIVE_STATE</code>:
+     * {@link #HOLD_STATE} and {@link #ACTIVE_STATE}
      *
      * <ul>
      *  <li><code>ACTIVE</code> means the job is submitted in a runnable
@@ -297,7 +304,13 @@ public class JobTemplateImpl implements JobTemplate {
      * @see #setJobEnvironment(Map)
      */
     public Map getJobEnvironment() throws DrmaaException {
-        return environment;
+        Map returnValue = null;
+
+        if (environment != null) {
+            returnValue = Collections.unmodifiableMap(environment);
+        }
+
+        return returnValue;
     }
     
     /**
@@ -407,7 +420,11 @@ public class JobTemplateImpl implements JobTemplate {
      * @see #setEmail(java.util.Set)
      */
     public Set getEmail() throws DrmaaException {
-        return email;
+    	Set result = null;
+    	if (email != null) {
+        	result = Collections.unmodifiableSet(email);
+    	}
+        return result;
     }
     
     /**
@@ -448,6 +465,9 @@ public class JobTemplateImpl implements JobTemplate {
      * @see org.ggf.drmaa.PartialTimestamp
      */
     public void setStartTime(PartialTimestamp startTime) throws DrmaaException {
+        if (startTime.getTimeInMillis() < System.currentTimeMillis()) {
+            throw new IllegalArgumentException("Start time is in the past.");
+        }
         this.startTime = startTime;
     }
     
@@ -459,7 +479,7 @@ public class JobTemplateImpl implements JobTemplate {
      * @see #setStartTime(org.ggf.drmaa.PartialTimestamp)
      */
     public PartialTimestamp getStartTime() throws DrmaaException {
-        return startTime ;
+        return startTime;
     }
     
     /**
@@ -533,6 +553,7 @@ public class JobTemplateImpl implements JobTemplate {
     
     /**
      * {@inheritDoc}
+     * 
      * @return {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      * @see #setInputPath(String)
@@ -883,9 +904,9 @@ public class JobTemplateImpl implements JobTemplate {
     	return valid;
     }
     
-    /**
-     * Uses the SessionImpl instance to set the vector attribute in the native
-     * job template associated with this JobTemplateImpl instance.
+    /*
+     * Utility method to set attributes. Caller passes the name of the attribute
+     * and the value.
      */
     private void setAttribute(String name, String value) throws DrmaaException {
         if (! isValidAttribute(name)) {
@@ -914,10 +935,10 @@ public class JobTemplateImpl implements JobTemplate {
         	}
         	this.setBlockEmail(block);
         } else if (name.equals(START_TIME)) {
-        	PartialTimestampFormat f = new PartialTimestampFormat();
+        	PartialTimestampFormat ptsFormat = new PartialTimestampFormat();
         	PartialTimestamp pts;
 			try {
-				pts = f.parse(value);
+				pts = ptsFormat.parse(value);
 			} catch (ParseException e) {
 				throw new InvalidAttributeValueException("Unable to parse start time value.");
 			}
@@ -979,9 +1000,10 @@ public class JobTemplateImpl implements JobTemplate {
      * @param obj the object against which to compare
      * @return whether the the given object is the same as this object
      */
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof JobTemplateImpl) {
-            return (this.getId() == ((JobTemplateImpl)obj).getId());
+            return (this.getId() == ((JobTemplateImpl) obj).getId());
         } else {
             return false;
         }
@@ -993,6 +1015,7 @@ public class JobTemplateImpl implements JobTemplate {
      * 
      * @return the hash code
      */
+    @Override
     public int hashCode() {
         return this.getId();
     }
