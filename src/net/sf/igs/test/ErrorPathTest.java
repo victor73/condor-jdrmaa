@@ -57,6 +57,9 @@ public class ErrorPathTest {
 		deleteErrorFile();
 	}
 
+	/*
+	 * Delete the error file that is produced by running this test.
+	 */
 	private static void deleteErrorFile() {
 		// Delete the file if it's there (could be a leftover from previous tests)
 		if (errorFile.exists()) {
@@ -127,6 +130,10 @@ public class ErrorPathTest {
 		}
 	}
 	
+	/**
+	 * Perform cleanup by deleting the error file after the test has finished
+	 * executing.
+	 */
 	@AfterClass
 	public static void cleanup() {
 		deleteErrorFile();
