@@ -28,6 +28,7 @@ import java.io.Reader;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -409,6 +410,117 @@ public class ControlTest {
 		}
 	}
 	
+	/**
+	 * See if we can control all the session jobs, even when the session
+	 * has array jobs in it.
+	 */
+	@Test
+	public void testControlAllSessionJobsWithArrayJobs() {
+		try {
+			Session session = SessionFactory.getFactory().getSession();
+			session.init(name);
+			
+			JobTemplate jt = getSleepJobTemplate(session);
+			
+			int jobQuantity = 100;
+			List<String> jobIds = session.runBulkJobs(jt, 1, jobQuantity, 1);
+			
+			session.deleteJobTemplate(jt);
+			
+			for (String jobId : jobIds) {
+				// Add this job ID to the IDs to cleanup after tests are completed
+				jobIdsToCleanup.add(jobId);
+			}
+			
+			// Okay, we now have a quantity of jobs belonging to the session.
+			// Let us see if we can control them all.
+			session.control(Session.JOB_IDS_SESSION_ALL, Session.HOLD);
+			
+			// Sleep a little, then make sure the jobs are not held anymore
+			Thread.sleep(2000);
+			
+			// Verify that all these jobs are held
+			boolean allHeld = true;
+			for (String jobId : jobIds) {
+				boolean held = isJobHeld(jobId);
+				if (! held) {
+					allHeld = false;
+					break;
+				}
+			}
+			assertTrue(allHeld);
+			
+			// Exit the session
+			session.exit();
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	/**
+	 * 
+	 */
+	@Test
+	public void testControlAllSessionJobs() {
+		try {
+			Session session = SessionFactory.getFactory().getSession();
+			session.init(name);
+			
+			// Create a bunch of jobs in the held state. This will let us test
+			// the control functionality when we attempt to control all jobs
+			// from the session.
+			int jobQuantity = 5;
+			String[] jobs = new String[jobQuantity];
+			
+			for (int jobIndex = 1; jobIndex <= jobQuantity; jobIndex++) {
+				String jobId = createJob(session);
+				jobs[jobIndex - 1] = jobId;
+				
+				// Add this job to the jobs to cleanup after tests are completed
+				jobIdsToCleanup.add(jobId);
+			}
+			
+			// Okay, we now have a quantity of jobs belonging to the session.
+			// Let us see if we can control them all.
+			session.control(Session.JOB_IDS_SESSION_ALL, Session.HOLD);
+			
+			// Sleep a little, then make sure the jobs are not held anymore
+			Thread.sleep(2000);
+			
+			// Verify that all these jobs are held
+			boolean allHeld = true;
+			for (int jobIndex = 1; jobIndex <= jobQuantity; jobIndex++) {
+				boolean held = isJobHeld(jobs[jobIndex - 1]);
+				if (! held) {
+					allHeld = false;
+					break;
+				}
+			}
+			assertTrue(allHeld);
+			
+			// Exit the session
+			session.exit();
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	/*
+	 * Start a job and return the job ID.
+	 */
+	private String createJob(Session session) throws DrmaaException {
+		JobTemplate jt = getSleepJobTemplate(session);
+
+		String jobId = session.runJob(jt);
+
+		// Free job template resources
+		session.deleteJobTemplate(jt);
+
+		return jobId;
+	}
+	
 	/*
 	 * Start a job, suspend it, and return the job ID. This is useful for the 
 	 * "release" related tests.
@@ -449,6 +561,8 @@ public class ControlTest {
 	 */
 	private boolean isJobRunning(String jobId) throws CondorExecException {
 		boolean running = false;
+		// Get the job status code, and then see if it has an 'r' character in it.
+		// The 'r' character means that the job is running.
 		String statusCode = getJobStatusCode(jobId);
 		if (statusCode != null && (statusCode.length() > 0) && statusCode.toLowerCase().contains("r")) {
 			running = true;
@@ -461,14 +575,15 @@ public class ControlTest {
 	 */
 	private boolean isJobHeld(String jobId) throws CondorExecException {
 		boolean held = false;
+		// Get the job status code, and then see if it has an 'h' character in it.
+		// The 'h' character means that the job is on hold.
 		String statusCode = getJobStatusCode(jobId);
 		if (statusCode != null && (statusCode.length() > 0) && statusCode.toLowerCase().contains("h")) {
 			held = true;
 		}
 		return held;
 	}
-	
-	
+
 	/*
 	 * Returns the status code for a particular job ID specified by the caller.
 	 * The method determines this status code by executing "condor_q" and
@@ -520,11 +635,10 @@ public class ControlTest {
 		
 		return statusCode;
 	}
-	
-	/* 
-	 * Confirm whether a particular job, specified with a job ID, is
-	 * on the grid or not. We do NOT rely on our own DRMAA
-	 * implementation to determine this.
+
+	/*
+	 * Confirm whether a particular job, specified with a job ID, is on the grid
+	 * or not. We do NOT rely on our own DRMAA implementation to determine this.
 	 */ 
 	private boolean isJobPresent(String jobId) throws CondorExecException {
 		boolean present = false;
