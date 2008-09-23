@@ -117,7 +117,7 @@ public class SessionImpl implements Session {
         	// the job IDs for this session and perform the control on all of them
         	if (jobId.equals(Session.JOB_IDS_SESSION_ALL)) {
         		// Get all the job IDs for this session and put them into the set.
-        		jobIDs.addAll(getAllSessionJobs());
+        		jobIDs.addAll(getAllSessionJobsIDs());
         	} else {
         		// Only 1 job ID to control...
         		jobIDs.add(jobId);
@@ -300,22 +300,14 @@ public class SessionImpl implements Session {
      * @param jt {@inheritDoc}
      * @throws DrmaaException {@inheritDoc}
      */
-    public void deleteJobTemplate(JobTemplate jt) throws DrmaaException {		
+    public void deleteJobTemplate(JobTemplate jt) throws DrmaaException {
         if (jt == null) {
             throw new NullPointerException("JobTemplate is null");
-        } else if (jt instanceof JobTemplateImpl) {
-        	JobTemplateImpl job = (JobTemplateImpl) jt;
-        	int id = job.getId();
-
-        	// Delete the file from the session area
-        	File jobSessionFile = getJobTemplateFile(id);
-        	if (jobSessionFile.exists() && jobSessionFile.isFile()) {
-        		jobSessionFile.delete();
-        	}
-        	job = null;
+        } else if (jt instanceof SimpleJobTemplate) {
+        	// Section 7.3 of the Java DRMAA 1.0 spec
+			throw new InvalidJobTemplateException();
+		} else if (jt instanceof JobTemplateImpl) {
         	jt = null;
-        } else {
-            throw new InvalidJobTemplateException();
         }
     }
     
@@ -411,7 +403,7 @@ public class SessionImpl implements Session {
      * @throws DrmaaException {@inheritDoc}
      */
     public List<String> runBulkJobs(JobTemplate jt, int start, int end, int increment) throws DrmaaException {
-		// See Section 7.3 of the Java DRMAA spec
+		// See Section 7.3 of the Java DRMAA 1.0 spec
 		if (jt instanceof SimpleJobTemplate) {
 			throw new InvalidJobTemplateException();
 		}
@@ -430,9 +422,14 @@ public class SessionImpl implements Session {
 
     	// TODO: It appears that Condor doesn't handle increments other than 1. Verify.
         if (increment != 1) {
-			throw new InvalidJobTemplateException(
+			throw new IllegalArgumentException(
 					"This version of Condor-JDRMAA only supports increments of 1");
 		}
+        
+        // Start and end should be positive
+        if ((start < 0) || (end < 0)) {
+        	throw new IllegalArgumentException("Only positive integers are allowed for start and end.");
+        }
 
         // The start value must be greater than the end value. Otherwise we are
         // decrementing.
@@ -459,6 +456,9 @@ public class SessionImpl implements Session {
 			for (int jobIndex = 0; jobIndex < end; jobIndex++) {
 				String fullJobId = jobId + "." + jobIndex;
 				jobs.add(fullJobId);
+				
+				// Save the retrieved jobId in the session file
+				saveJobIdInSessionFile(jt, fullJobId);
 			}
 			return jobs;
 		} catch (Exception e) {
@@ -507,25 +507,21 @@ public class SessionImpl implements Session {
         return jobId;
     }
 
-	/**
+	/*
 	 * Save the job ID in the session file for the job.
 	 * 
-	 * @param jt a {@link JobTemplate}
+	 * @param template a {@link JobTemplate}
 	 * @param jobId a <code>String</code>
 	 * @throws IOException
 	 * @throws DrmaaException 
 	 */
-	private void saveJobIdInSessionFile(JobTemplate jt, String jobId)
+	private void saveJobIdInSessionFile(JobTemplate template, String jobId)
 			throws IOException, DrmaaException {
-		// Section 7.3 of the Java DRMAA spec
-		if (jt instanceof SimpleJobTemplate) {
-			throw new InvalidJobTemplateException();
-		}
-		File templateFile = getJobTemplateFile(((JobTemplateImpl) jt).getId());
-		BufferedWriter w = new BufferedWriter(new FileWriter(templateFile));
-		w.write(jobId);
-		w.newLine();
-		w.close();
+		File templateFile = getJobTemplateFile(((JobTemplateImpl) template).getId());
+		BufferedWriter writer = new BufferedWriter(new FileWriter(templateFile));
+		writer.write(jobId);
+		writer.newLine();
+		writer.close();
 	}
     
     /**
@@ -819,7 +815,7 @@ public class SessionImpl implements Session {
     	while (iter.hasNext()) {
     		String jobId = (String) iter.next();
     		// If any of the job IDs provided is the magical JOB_IDS_SESSION_ALL,
-    		// the stop checking because we need to wait for ALL ids belonging to
+    		// the stop checking because we need to wait for ALL IDs belonging to
     		// this session...
     		if (jobId.equals(Session.JOB_IDS_SESSION_ALL))   {
     			waitOnAllSessionJobs = true;
@@ -840,7 +836,7 @@ public class SessionImpl implements Session {
 				// to the session. That means we need to scan the session directory
 				// for all the job IDs belonging to it. For this, we make use of a
 				// private method...
-				toWaitFor = getAllSessionJobs();
+				toWaitFor = getAllSessionJobsIDs();
 			} else {
 				// Okay, in this case, we only need to wait for the job IDs that have
 				// been explicitly passed to us. None of the IDs was equal to the
@@ -892,10 +888,17 @@ public class SessionImpl implements Session {
      * @return a {@link Set} of String job IDs
      * @throws IOException
      */
-    private Set<String> getAllSessionJobs() throws IOException {
+    private Set<String> getAllSessionJobsIDs() throws IOException {
 		File[] idFiles = sessionDir.listFiles();
 		Set<String> idSet = new HashSet<String>();
+		
+		// Iterate through the files
 		for (File file : idFiles) {
+			// Make sure we have a readable file.
+			if (! (file.isFile() && file.canRead())) {
+				continue;
+			}
+			
 			try {
 				BufferedReader reader = new BufferedReader(new FileReader(file));
 				String jobId = null;
