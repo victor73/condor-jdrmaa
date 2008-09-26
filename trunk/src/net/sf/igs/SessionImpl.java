@@ -23,6 +23,8 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -195,14 +197,21 @@ public class SessionImpl implements Session {
      * @throws DrmaaException {@inheritDoc}
      */
     public void exit() throws DrmaaException {
-    	if (activeSession) {
-        	if (sessionDir != null && sessionDir.exists()) {
-        		Util.deleteDir(sessionDir);
-        	}
-            activeSession = false;
-    	} else {
-    		throw new NoActiveSessionException();
-    	}
+    	synchronized (JOB_IDS_SESSION_ALL) {
+			try {
+				if (activeSession) {
+					if (sessionDir != null && sessionDir.exists()) {
+						Util.deleteDir(sessionDir);
+					}
+				} else {
+					throw new NoActiveSessionException();
+				}
+			} catch (DrmaaException e) {
+				throw e;
+			} finally {
+				activeSession = false;
+			}
+		}
     }
 
     /**
@@ -456,10 +465,13 @@ public class SessionImpl implements Session {
 			for (int jobIndex = 0; jobIndex < end; jobIndex++) {
 				String fullJobId = jobId + "." + jobIndex;
 				jobs.add(fullJobId);
-				
-				// Save the retrieved jobId in the session file
-				saveJobIdInSessionFile(jt, fullJobId);
 			}
+			
+			// Save all the retrieved job IDs in the session file
+			HashSet<String> jobSet = new HashSet<String>();
+			jobSet.addAll(jobs);
+			saveJobIDsInSessionFile(jt, jobSet);
+			
 			return jobs;
 		} catch (Exception e) {
 			throw new InvalidJobTemplateException(e.getMessage());
@@ -499,8 +511,9 @@ public class SessionImpl implements Session {
         try {
         	File submitFile = createSubmitFile(jt, 1);
 			jobId = submit(submitFile);
+			
 			// Save the retrieved jobId in the session file
-			saveJobIdInSessionFile(jt, jobId);
+			saveJobIDsInSessionFile(jt, Collections.singleton(jobId));
         } catch (Exception e) {
         	throw new InternalException(e.getMessage());
         }
@@ -508,19 +521,25 @@ public class SessionImpl implements Session {
     }
 
 	/*
-	 * Save the job ID in the session file for the job.
+	 * Save the job IDs in the session file for the job.
 	 * 
 	 * @param template a {@link JobTemplate}
-	 * @param jobId a <code>String</code>
+	 * @param jobIDs a {@link Set}
 	 * @throws IOException
 	 * @throws DrmaaException 
 	 */
-	private void saveJobIdInSessionFile(JobTemplate template, String jobId)
+	private void saveJobIDsInSessionFile(JobTemplate template, Set<String> jobIDs)
 			throws IOException, DrmaaException {
 		File templateFile = getJobTemplateFile(((JobTemplateImpl) template).getId());
 		BufferedWriter writer = new BufferedWriter(new FileWriter(templateFile));
-		writer.write(jobId);
-		writer.newLine();
+		Iterator<String> iter = jobIDs.iterator();
+		
+		// Iterate over the IDs and write them to the file
+		while (iter.hasNext()) {
+			String jobId = iter.next();
+			writer.write(jobId);
+			writer.newLine();
+		}
 		writer.close();
 	}
     
