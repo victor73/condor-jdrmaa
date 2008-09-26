@@ -34,6 +34,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import net.sf.igs.CondorExecException;
+import net.sf.igs.SessionImpl;
 
 import org.ggf.drmaa.DrmaaException;
 import org.ggf.drmaa.JobTemplate;
@@ -113,8 +114,9 @@ public class ControlTest {
 	 */
 	@Test
 	public void testJobTerminate() {
+		Session session = SessionFactory.getFactory().getSession();
+		
 		try {
-			Session session = SessionFactory.getFactory().getSession();
 			session.init(name);
 			
 			JobTemplate jt = getSleepJobTemplate(session);
@@ -139,9 +141,6 @@ public class ControlTest {
 			// Sleep a little more...
 			Thread.sleep(2000);
 			
-			// Exit the session
-			session.exit();
-			
 			// Determine if the job is present on the grid. We use
 			// a private method to help us with this.
 			present = isJobPresent(jobId);
@@ -157,6 +156,15 @@ public class ControlTest {
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			try {
+				// Exit the session
+				if (session != null) {
+					session.exit();
+				}
+			} catch (Exception e) {
+				// ignored
+			}
 		}
 	}
 	
@@ -165,8 +173,9 @@ public class ControlTest {
 	 */
 	@Test
 	public void testJobSuspend() {
+		Session session = SessionFactory.getFactory().getSession();
+		
 		try {
-			Session session = SessionFactory.getFactory().getSession();
 			session.init(name);
 			
 			JobTemplate jt = getSleepJobTemplate(session);
@@ -188,20 +197,27 @@ public class ControlTest {
 			// Try suspending the job
 			session.control(jobId, Session.SUSPEND);
 			
-			// Exit the session
-			session.exit();
-			
 			boolean held = isJobHeld(jobId);
 			if (held) {
 				// Save the job ID for later removal. Can't have an accumulation
 				// of held jobs just because we're testing can we?
 				jobIdsToCleanup.add(jobId);
 			}
+			
 			assertTrue(held);
 			
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			try {
+				// Exit the session
+				if (session != null) {
+					session.exit();
+				}
+			} catch (Exception e) {
+				// ignored
+			}
 		}
 	}
 	
@@ -210,8 +226,9 @@ public class ControlTest {
 	 */
 	@Test
 	public void testJobHold() {
+		Session session = SessionFactory.getFactory().getSession();
+		
 		try {
-			Session session = SessionFactory.getFactory().getSession();
 			session.init(name);
 			
 			JobTemplate jt = getSleepJobTemplate(session);
@@ -232,10 +249,7 @@ public class ControlTest {
 			
 			// Try putting the job on hold
 			session.control(jobId, Session.HOLD);
-			
-			// Exit the session
-			session.exit();
-			
+				
 			boolean held = isJobHeld(jobId);
 			if (held) {
 				// Save the job ID for later removal. Can't have an accumulation
@@ -247,6 +261,15 @@ public class ControlTest {
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			try {
+				// Exit the session
+				if (session != null) {
+					session.exit();
+				}
+			} catch (Exception e) {
+				// ignored
+			}
 		}
 	}
 	
@@ -255,8 +278,9 @@ public class ControlTest {
 	 */
 	@Test
 	public void testJobResume() {
+		Session session = SessionFactory.getFactory().getSession();
+		
 		try {
-			Session session = SessionFactory.getFactory().getSession();
 			session.init(name);
 			
 			// Create a job that is suspended/held. This will let us test
@@ -272,28 +296,37 @@ public class ControlTest {
 			
 			// Sleep a little, then make sure the job is not held anymore
 			Thread.sleep(2000);
+			
 			boolean held = isJobHeld(jobId);
 			assertFalse(held);
 			
 			// Might take a little while for the job to return to a running state.
 			boolean running = false;
-			for (int count = 1; count <= 10; count++) {
+			int maxAttempts = 10;
+			for (int count = 1; count <= maxAttempts; count++) {
 				// Verify that the job is now running
 				running = isJobRunning(jobId);
 				if (running) {
 					break;
 				} else {
 					// Wait a little bit
-					Thread.sleep(2000);
+					Thread.sleep(3000);
 				}
 			}
-			assertTrue(running);
 			
-			// Exit the session
-			session.exit();
+			assertTrue(running);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			try {
+				// Exit the session
+				if (session != null) {
+					session.exit();
+				}
+			} catch (Exception e) {
+				// ignored
+			}
 		}
 	}
 	
@@ -302,8 +335,9 @@ public class ControlTest {
 	 */
 	@Test
 	public void testJobRelease() {
+		Session session = SessionFactory.getFactory().getSession();
+		
 		try {
-			Session session = SessionFactory.getFactory().getSession();
 			session.init(name);
 			
 			// Create a job that is suspended/held. This will let us test
@@ -334,13 +368,20 @@ public class ControlTest {
 					Thread.sleep(2000);
 				}
 			}
-			assertTrue(running);
 			
-			// Exit the session
-			session.exit();
+			assertTrue(running);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			try {
+				// Exit the session
+				if (session != null) {
+					session.exit();
+				}
+			} catch (Exception e) {
+				// ignored
+			}
 		}
 	}
 
@@ -356,8 +397,11 @@ public class ControlTest {
 	 */
 	@Test
 	public void testHoldOutOfSession() {
+		Session session = null;
+		Session session2 = null;
+		
 		try {
-			Session session = SessionFactory.getFactory().getSession();
+			session = new SessionImpl();
 			session.init(name);
 			
 			// Get a job template for a job that just sleeps
@@ -378,12 +422,9 @@ public class ControlTest {
 			boolean present = isJobPresent(jobId);
 			assertTrue(present);
 			
-			// Exit the first session
-			session.exit();
-			session = null;
-			
 			// Now start a new session, with a different name.
-			Session session2 = SessionFactory.getFactory().getSession();
+			session2 = new SessionImpl();
+			
 			session2.init(name + "2");
 			session2.control(jobId, Session.HOLD);
 			
@@ -400,13 +441,26 @@ public class ControlTest {
 			if (held) {
 				jobIdsToCleanup.add(jobId);
 			}
-			
-			// Exit the second session
-			session2.exit();
-			
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			try {
+				// Exit the sessions
+				if (session != null) {
+					session.exit();
+				}
+			} catch (Exception e) {
+				// ignored
+			}
+			
+			try {
+				if (session2 != null) {
+					session2.exit();
+				}
+			} catch (Exception e) {
+				// ignored
+			}
 		}
 	}
 	
@@ -416,8 +470,9 @@ public class ControlTest {
 	 */
 	@Test
 	public void testControlAllSessionJobsWithArrayJobs() {
+		Session session = SessionFactory.getFactory().getSession();
+		
 		try {
-			Session session = SessionFactory.getFactory().getSession();
 			session.init(name);
 			
 			JobTemplate jt = getSleepJobTemplate(session);
@@ -436,25 +491,42 @@ public class ControlTest {
 			// Let us see if we can control them all.
 			session.control(Session.JOB_IDS_SESSION_ALL, Session.HOLD);
 			
-			// Sleep a little, then make sure the jobs are not held anymore
-			Thread.sleep(2000);
-			
 			// Verify that all these jobs are held
 			boolean allHeld = true;
-			for (String jobId : jobIds) {
-				boolean held = isJobHeld(jobId);
-				if (! held) {
-					allHeld = false;
+			int maxAttempts = 10;
+			for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+				for (String jobId : jobIds) {
+					boolean held = isJobHeld(jobId);
+					if (! held) {
+						allHeld = false;
+						break;
+					}
+				}
+				
+				if (allHeld) {
+					// Okay, everything is held, so break out of the retry loop
 					break;
+				} else {
+					// Wait a little bit and try again
+					Thread.sleep(2000);
 				}
 			}
+			
+			// Are all the jobs held?
 			assertTrue(allHeld);
 			
-			// Exit the session
-			session.exit();
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			try {
+				// Exit the sessions
+				if (session != null) {
+					session.exit();
+				}
+			} catch (Exception e) {
+				// ignored
+			}
 		}
 	}
 	
@@ -463,8 +535,9 @@ public class ControlTest {
 	 */
 	@Test
 	public void testControlAllSessionJobs() {
-		try {
-			Session session = SessionFactory.getFactory().getSession();
+		Session session = SessionFactory.getFactory().getSession();
+		
+		try {			
 			session.init(name);
 			
 			// Create a bunch of jobs in the held state. This will let us test
@@ -497,13 +570,20 @@ public class ControlTest {
 					break;
 				}
 			}
-			assertTrue(allHeld);
 			
-			// Exit the session
-			session.exit();
+			assertTrue(allHeld);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			try {
+				// Exit the sessions
+				if (session != null) {
+					session.exit();
+				}
+			} catch (Exception e) {
+				// ignored
+			}
 		}
 	}
 	
