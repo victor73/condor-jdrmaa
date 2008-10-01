@@ -1,17 +1,9 @@
-Compiling Condor-JDRMAA
-=======================
+Building Condor-JDRMAA
+======================
 
-To compile Condor-JDRMAA, both the gcc compiler and ant are required. Gcc is
-necessary for compiling the C portion of the library while ant, and a Java JDK
-are required to compile the Java classes.
+To compile Condor-JDRMAA library, both ant and a Java SDK 1.5 or above or required.
 
-If your system has the necessary dependencies, simply run `make` on the command
-line that this README document is found in. The provided Makefile will first
-compile the C code necessary for the Java JNI mechanism to work. Then it will
-will execute ant to run the Java build using the included build.xml file. Since
-the C code requires the Condor C implementation for DRMAA, including drmaa.h
-and libDrmaa.c, the process requires that you set the CONDOR_HOME variable by
-editing the Makefile file iteself. At the conclusion of running make, you
-should have a directory called 'dist' with both the shared object file
-(libcondorjdrmaa.so) and the Java jar file condor-jdrmaa-xxx.jar, where xxx is
-the version number.
+If your system has these installed, simply run "ant" to run the build using the
+included build.xml file. At the conclusion of running ant, you
+should have a directory named 'dist' with the Java jar file condor-jdrmaa-xxx.jar
+in it, where xxx is the version number.
