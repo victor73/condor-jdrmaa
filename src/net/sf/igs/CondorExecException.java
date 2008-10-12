@@ -17,7 +17,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 /**
- *
+ * Problem occurred when running a Condor binary invocation.
  */
 public class CondorExecException extends Exception {
 
